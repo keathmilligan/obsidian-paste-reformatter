@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paste Reformatter Test Document</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .empty-div {
+            margin: 20px 0;
+        }
+        .nested {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Heading Level 1</h1>
+    <p>This is a paragraph under heading level 1. This text should be preserved when pasted into Obsidian.</p>
+    
+    <h2>Heading Level 2</h2>
+    <p>This is a paragraph under heading level 2. The plugin should adjust this heading based on your settings.</p>
+    
+    <h3>Heading Level 3</h3>
+    <p>This is a paragraph under heading level 3. Testing how the plugin handles this level.</p>
+    
+    <h4>Heading Level 4</h4>
+    <p>This is a paragraph under heading level 4. Testing deeper heading levels.</p>
+    
+    <h5>Heading Level 5</h5>
+    <p>This is a paragraph under heading level 5. Testing even deeper heading levels.</p>
+    
+    <h6>Heading Level 6</h6>
+    <p>This is a paragraph under heading level 6. This is the deepest heading level in HTML.</p>
+    
+    <!-- Empty elements to test removal -->
+    <div class="empty-div"></div>
+    <p></p>
+    <div class="empty-div">
+        <p></p>
+    </div>
+    
+    <!-- Nested content -->
+    <div class="nested">
+        <h2>Nested Heading Level 2</h2>
+        <p>This is nested content with its own heading hierarchy.</p>
+        
+        <h3>Nested Heading Level 3</h3>
+        <p>More nested content to test how the plugin handles nested structures.</p>
+    </div>
+    
+    <!-- Lists -->
+    <h2>Lists Test</h2>
+    <ul>
+        <li>Unordered list item 1</li>
+        <li>Unordered list item 2
+            <ul>
+                <li>Nested unordered list item 1</li>
+                <li>Nested unordered list item 2</li>
+            </ul>
+        </li>
+        <li>Unordered list item 3</li>
+    </ul>
+    
+    <ol>
+        <li>Ordered list item 1</li>
+        <li>Ordered list item 2
+            <ol>
+                <li>Nested ordered list item 1</li>
+                <li>Nested ordered list item 2</li>
+            </ol>
+        </li>
+        <li>Ordered list item 3</li>
+    </ol>
+    
+    <!-- Links and formatting -->
+    <h2>Formatting Test</h2>
+    <p>This text has <strong>bold</strong>, <em>italic</em>, and <a href="https://obsidian.md">link</a> formatting.</p>
+    <p>This text has <code>inline code</code> formatting.</p>
+    
+    <pre><code>// This is a code block
+function testFunction() {
+    console.log("Hello, world!");
+}
+</code></pre>
+
+    <!-- Table -->
+    <h2>Table Test</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Header 1</th>
+                <th>Header 2</th>
+                <th>Header 3</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Row 1, Cell 1</td>
+                <td>Row 1, Cell 2</td>
+                <td>Row 1, Cell 3</td>
+            </tr>
+            <tr>
+                <td>Row 2, Cell 1</td>
+                <td>Row 2, Cell 2</td>
+                <td>Row 2, Cell 3</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <!-- Multiple consecutive empty lines -->
+    <p>Text before empty lines.</p>
+    
+    
+    
+    
+    <p>Text after empty lines.</p>
+
+    <!-- Horizontal rule -->    
+    <p>Text before horizontal rule.</p>
+    <hr/>
+    <p>Text after horizontal rule.</p>
+
+    <!-- Blockquote -->
+    <blockquote>
+        <p>This is a blockquote.</p>
+    </blockquote>
+
+    <!-- Code block -->
+    <pre><code>console.log("Hello, world!");</code></pre>
+
+    <!-- Line breaks -->
+    <p>Text before line break.</p>
+    <br/>
+    <p>Text after line break.</p>
+
+    <p>Text with an embedded <br/> line break.</p>
+    <p>
+        Another example of a <br/>
+        line break.
+    </p>
+
+</body>
+</html>

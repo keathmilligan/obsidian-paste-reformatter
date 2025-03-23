@@ -1,0 +1,34 @@
+# Build output
+main.js
+*.js.map
+data.json
+
+# Development environment
+node_modules/
+.DS_Store
+.vscode/
+.idea/
+.history/
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+.env
+
+# Distribution files
+dist/
+build/
+
+# Dependency lock files (keep package.json)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Testing
+coverage/
+.nyc_output/
+
+# Obsidian
+.obsidian/
+.trash/
