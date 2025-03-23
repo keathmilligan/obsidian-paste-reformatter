@@ -165,6 +165,8 @@ export default class PasteReformatter extends Plugin {
 	 * @returns The transformed markdown content
 	 */
 	transformMarkdown(markdown: string, contextLevel: number = 0): string {
+
+		console.log(`Transforming markdown content (context level: ${contextLevel}):`, markdown);
 		// Apply regex replacements if defined
 		if (this.settings.markdownRegexReplacements && this.settings.markdownRegexReplacements.length > 0) {
 			for (const replacement of this.settings.markdownRegexReplacements) {
@@ -190,14 +192,11 @@ export default class PasteReformatter extends Plugin {
 				// Start headings one level deeper than the context
 				const baseLevel = contextLevel + 1;
 				
-				if (this.settings.cascadeHeadingLevels) {
-					// Preserve the hierarchy with an offset from the context level
-					const offset = currentLevel - 1; // H1 becomes level+0, H2 becomes level+1, etc.
-					newLevel = Math.min(baseLevel + offset, 6);
-				} else {
-					// Just use the base level for all headings
-					newLevel = Math.min(baseLevel, 6);
-				}
+				// Calculate the offset from H1
+				const offset = currentLevel - 1;
+				
+				// Apply the offset to the base level, ensuring we don't exceed H6
+				newLevel = Math.min(baseLevel + offset, 6);
 				
 				// Return the new heading with the adjusted level
 				return '#'.repeat(newLevel) + ' ';
@@ -209,13 +208,15 @@ export default class PasteReformatter extends Plugin {
 				let newLevel = currentLevel;
 				
 				if (this.settings.cascadeHeadingLevels) {
-					// When cascade is enabled, preserve the heading hierarchy
-					// For example, if max level is 2:
-					// H1 -> H2 (max level)
-					// H2 -> H3 (max level + 1)
-					// H3 -> H4 (max level + 2)
+					// When cascade is enabled, heading values greater than max level are changed to max level
+					// and subsequent heading values are demoted to the level below
+					// For example, if max level is 3:
+					// H1 -> H3 (max level)
+					// H2 -> H4 (max level + 1)
+					// H3 -> H5 (max level + 2)
+					// H4+ -> H6 (capped at H6)
 					
-					// Calculate the offset from the original level
+					// Calculate the offset from H1
 					const offset = currentLevel - 1;
 					// Apply the offset to the max level, ensuring we don't exceed H6
 					newLevel = Math.min(this.settings.maxHeadingLevel + offset, 6);
@@ -310,12 +311,15 @@ export default class PasteReformatter extends Plugin {
 			if (clipboardData.types.includes('text/html')) {
 				// Process as HTML
 				const html = clipboardData.getData('text/html');
+
+				// console.log("HTML content:", html);
 				
 				// Transform HTML before converting to Markdown
 				const transformedHTML = this.transformHTML(html);
 				
 				// Use Obsidian's built-in htmlToMarkdown function
 				markdown = htmlToMarkdown(transformedHTML);
+
 				contentType = 'HTML';
 			} else if (clipboardData.types.includes('text/plain')) {
 				// Process as plain text - treat it as already being Markdown
