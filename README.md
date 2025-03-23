@@ -193,4 +193,4 @@ The content will maintain its original structure, but headings will be adjusted 
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the BSD Zero Clause License - see the LICENSE file for details.
