@@ -3,7 +3,7 @@
 	"name": "Paste Reformatter",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "A plugin that re-formats pasted HTML text in Obsidian.",
+	"description": "A plugin that reformats pasted text for precise control.",
 	"author": "Keath Milligan",
 	"authorUrl": "https://github.com/keathmilligan",
 	"isDesktopOnly": false
