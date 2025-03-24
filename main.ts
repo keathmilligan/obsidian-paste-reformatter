@@ -166,7 +166,6 @@ export default class PasteReformatter extends Plugin {
 	 */
 	transformMarkdown(markdown: string, contextLevel: number = 0): string {
 
-		console.log(`Transforming markdown content (context level: ${contextLevel}):`, markdown);
 		// Apply regex replacements if defined
 		if (this.settings.markdownRegexReplacements && this.settings.markdownRegexReplacements.length > 0) {
 			for (const replacement of this.settings.markdownRegexReplacements) {
