@@ -18,6 +18,7 @@ node_modules/
 
 # Distribution files
 dist/
+dist
 build/
 
 # Dependency lock files (keep package.json)

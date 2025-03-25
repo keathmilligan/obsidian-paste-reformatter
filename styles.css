@@ -6,3 +6,52 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+/* Regex Replacement Container Styles */
+.regex-replacements-container {
+    margin-left: 40px;
+    margin-bottom: 20px;
+}
+
+/* Regex Replacement Table Styles */
+.regex-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Table Header Styles */
+.regex-th {
+    text-align: left;
+    padding: 5px;
+}
+
+.regex-th-pattern, .regex-th-replacement {
+    width: 40%;
+}
+
+.regex-th-actions {
+    width: 20%;
+}
+
+/* Table Cell Styles */
+.regex-td {
+    padding: 5px;
+}
+
+.regex-td-actions {
+    text-align: center;
+}
+
+/* Input Field Styles */
+.regex-input {
+    width: 100%;
+}
+
+/* Empty Message Styles */
+.regex-empty-message {
+    text-align: center;
+    padding: 10px;
+    font-style: italic;
+    color: var(--text-muted);
+    opacity: 0.7;
+}

@@ -2,6 +2,8 @@
 // Copyright (C) 2025 by Keath Milligan.
 
 import { App, MarkdownView, Plugin, PluginSettingTab, Setting, htmlToMarkdown, Notice } from 'obsidian';
+import { transformHTML } from './htmlTransformer';
+import { transformMarkdown } from './markdownTransformer';
 
 interface RegexReplacement {
 	pattern: string;
@@ -53,236 +55,6 @@ export default class PasteReformatter extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
-	
-	/**
-	 * Transforms the HTML content before converting it to Markdown
-	 * @param html The HTML content to transform
-	 * @returns The transformed HTML content
-	 */
-	transformHTML(html: string): string {
-		// Apply regex replacements first
-		if (this.settings.htmlRegexReplacements && this.settings.htmlRegexReplacements.length > 0) {
-			for (const replacement of this.settings.htmlRegexReplacements) {
-				try {
-					const regex = new RegExp(replacement.pattern, 'g');
-					html = html.replace(regex, replacement.replacement);
-				} catch (error) {
-					console.error(`Error applying regex replacement: ${error}`);
-				}
-			}
-		}
-		
-		// Create a temporary DOM element to parse the HTML
-		const parser = new DOMParser();
-		const doc = parser.parseFromString(html, 'text/html');
-		
-		// Process line breaks if strip line breaks is enabled
-		if (this.settings.stripLineBreaks) {
-			// Find all <br> elements and remove them
-			const brElements = doc.querySelectorAll('br');
-			brElements.forEach(br => {
-				br.remove();
-			});
-		} else {
-			// If we're not stripping line breaks, convert them to special paragraph tags
-			// that will be preserved even if empty elements are removed
-			const brElements = doc.querySelectorAll('br');
-			brElements.forEach(br => {
-				// Create a special paragraph with a class that marks it as a line break
-				const lineBreakP = doc.createElement('p');
-				lineBreakP.className = 'preserve-line-break';
-				lineBreakP.setAttribute('data-preserve', 'true');
-				
-				// Add a non-breaking space as placeholder content
-				// This ensures the paragraph isn't considered empty when Remove Empty Lines is enabled
-				// The unicode character will be invisible but ensures the line isn't empty
-				lineBreakP.innerHTML = '&#8203;'; // Zero-width space
-				
-				// Replace the <br> with our special paragraph
-				br.parentNode?.replaceChild(lineBreakP, br);
-			});
-		}
-		
-		// Remove empty elements if enabled
-		if (this.settings.removeEmptyElements) {
-			// Function to check if an element is empty (no text content and no meaningful children)
-			const isElementEmpty = (element: Element): boolean => {
-				// Skip certain elements that are meaningful even when empty
-				if (['img', 'hr', 'br', 'input', 'iframe'].includes(element.tagName.toLowerCase())) {
-					return false;
-				}
-				
-				// Skip our special line break paragraphs
-				if (element.hasAttribute('data-preserve')) {
-					return false;
-				}
-				
-				// Check if it has any text content (excluding whitespace)
-				if (element.textContent && element.textContent.trim().length > 0) {
-					return false;
-				}
-				
-				// Check if it has any non-empty children
-				for (let i = 0; i < element.children.length; i++) {
-					if (!isElementEmpty(element.children[i])) {
-						return false;
-					}
-				}
-				
-				return true;
-			};
-			
-			// Find and remove empty elements
-			// We need to use a while loop because the DOM changes as we remove elements
-			let emptyElementsFound = true;
-			while (emptyElementsFound) {
-				emptyElementsFound = false;
-				
-				// Target common empty elements
-				const potentialEmptyElements = doc.querySelectorAll('p:not([data-preserve]), div, span, li, ul, ol, table, tr, td, th');
-				potentialEmptyElements.forEach(element => {
-					if (isElementEmpty(element)) {
-						element.remove();
-						emptyElementsFound = true;
-					}
-				});
-				
-				// If no more empty elements are found, exit the loop
-				if (!emptyElementsFound) {
-					break;
-				}
-			}
-		}
-		
-		// Return the modified HTML
-		return doc.body.innerHTML;
-	}
-	
-	/**
-	 * Transforms the markdown content based on the plugin settings
-	 * @param markdown The markdown content to transform
-	 * @param contextLevel The current heading level for contextual cascade (0 if not in a heading section)
-	 * @returns The transformed markdown content
-	 */
-	transformMarkdown(markdown: string, contextLevel: number = 0): string {
-
-		// Apply regex replacements if defined
-		if (this.settings.markdownRegexReplacements && this.settings.markdownRegexReplacements.length > 0) {
-			for (const replacement of this.settings.markdownRegexReplacements) {
-				try {
-					const regex = new RegExp(replacement.pattern, 'g');
-					markdown = markdown.replace(regex, replacement.replacement);
-				} catch (error) {
-					console.error(`Error applying markdown regex replacement: ${error}`);
-				}
-			}
-		}
-		
-		// Find all heading lines
-		const headingRegex = /^(#{1,6})\s/gm;
-		
-		// Process headings based on settings
-		if (this.settings.contextualCascade && contextLevel > 0) {
-			// Contextual cascade is enabled and we have a context level
-			markdown = markdown.replace(headingRegex, (match, hashes) => {
-				const currentLevel = hashes.length;
-				let newLevel;
-				
-				// Start headings one level deeper than the context
-				const baseLevel = contextLevel + 1;
-				
-				// Calculate the offset from H1
-				const offset = currentLevel - 1;
-				
-				// Apply the offset to the base level, ensuring we don't exceed H6
-				newLevel = Math.min(baseLevel + offset, 6);
-				
-				// Return the new heading with the adjusted level
-				return '#'.repeat(newLevel) + ' ';
-			});
-		} else if (this.settings.maxHeadingLevel > 1) {
-			// Only process max heading level if contextual cascade is not active
-			markdown = markdown.replace(headingRegex, (match, hashes) => {
-				const currentLevel = hashes.length;
-				let newLevel = currentLevel;
-				
-				if (this.settings.cascadeHeadingLevels) {
-					// When cascade is enabled, heading values greater than max level are changed to max level
-					// and subsequent heading values are demoted to the level below
-					// For example, if max level is 3:
-					// H1 -> H3 (max level)
-					// H2 -> H4 (max level + 1)
-					// H3 -> H5 (max level + 2)
-					// H4+ -> H6 (capped at H6)
-					
-					// Calculate the offset from H1
-					const offset = currentLevel - 1;
-					// Apply the offset to the max level, ensuring we don't exceed H6
-					newLevel = Math.min(this.settings.maxHeadingLevel + offset, 6);
-				} else {
-					// Only max heading level is enabled, cascade is disabled
-					if (currentLevel < this.settings.maxHeadingLevel) {
-						// If heading level is less than max, increase it to max level
-						newLevel = this.settings.maxHeadingLevel;
-					} else {
-						// Keep headings at their original level if they're already at or deeper than max
-						newLevel = currentLevel;
-					}
-				}
-				
-				// Return the new heading with the adjusted level
-				return '#'.repeat(newLevel) + ' ';
-			});
-		}
-		
-		// First handle the special line break markers
-		let preserveLineBreaks = !this.settings.stripLineBreaks;
-		
-		// If we're not stripping line breaks, we need to handle the special markers
-		if (preserveLineBreaks) {
-			// Replace special line break markers with a unique placeholder that won't be affected by empty line removal
-			const lineBreakPlaceholder = '___LINE_BREAK_PLACEHOLDER___';
-			markdown = markdown.replace(/<p class="preserve-line-break"[^>]*>.*?<\/p>/g, lineBreakPlaceholder);
-			markdown = markdown.replace(/<p data-preserve="true"[^>]*>.*?<\/p>/g, lineBreakPlaceholder);
-			
-			// Remove empty lines if enabled
-			if (this.settings.removeEmptyLines) {
-				// First, normalize line endings to ensure consistent processing
-				markdown = markdown.replace(/\r\n/g, '\n');
-				
-				// Split the content into lines
-				const lines = markdown.split('\n');
-				
-				// Filter out empty lines, but keep our placeholders
-				const filteredLines = lines.filter(line => {
-					return line.trim() !== '' || line.includes(lineBreakPlaceholder);
-				});
-				
-				// Join the filtered lines back together
-				markdown = filteredLines.join('\n');
-			}
-			
-			// Now replace our placeholders with actual line breaks
-			markdown = markdown.replace(new RegExp(lineBreakPlaceholder, 'g'), '\n');
-		} else {
-			// If we're stripping line breaks, just remove empty lines normally
-			if (this.settings.removeEmptyLines) {
-				// First, normalize line endings to ensure consistent processing
-				markdown = markdown.replace(/\r\n/g, '\n');
-				
-				// Split the content into lines
-				const lines = markdown.split('\n');
-				
-				// Filter out all empty lines
-				const filteredLines = lines.filter(line => line.trim() !== '');
-				
-				// Join the filtered lines back together
-				markdown = filteredLines.join('\n');
-			}
-		}
-		
-		return markdown;
-	}
 
 	onPaste(event: ClipboardEvent) {
 		// Check if there's content in the clipboard
@@ -314,7 +86,7 @@ export default class PasteReformatter extends Plugin {
 				// console.log("HTML content:", html);
 				
 				// Transform HTML before converting to Markdown
-				const transformedHTML = this.transformHTML(html);
+				const transformedHTML = transformHTML(html, this.settings);
 				
 				// Use Obsidian's built-in htmlToMarkdown function
 				markdown = htmlToMarkdown(transformedHTML);
@@ -336,7 +108,7 @@ export default class PasteReformatter extends Plugin {
 			}
 			
 			// Apply settings to transform the markdown
-			markdown = this.transformMarkdown(markdown, contextLevel);
+			markdown = transformMarkdown(markdown, this.settings, contextLevel);
 			
 			// Replace the current selection with the converted markdown
 			editor.replaceSelection(markdown);
@@ -376,7 +148,6 @@ export default class PasteReformatter extends Plugin {
 		// No heading found above the cursor
 		return 0;
 	}
-
 }
 
 class PasteReformmatterSettingsTab extends PluginSettingTab {
@@ -446,14 +217,12 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			});
 		
 		// Create a container for the regex replacement rows
-		const regexContainer = containerEl.createDiv('regex-replacements-container');
-		regexContainer.style.marginLeft = '40px';
-		regexContainer.style.marginBottom = '20px';
+		const regexContainer = containerEl.createDiv();
+		regexContainer.addClass('regex-replacements-container');
 		
 		// Create a table for the regex replacements
 		const table = regexContainer.createEl('table');
-		table.style.width = '100%';
-		table.style.borderCollapse = 'collapse';
+		table.addClass('regex-table');
 		
 		// Create the header row
 		const thead = table.createEl('thead');
@@ -462,21 +231,19 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 		// Pattern header
 		const patternHeader = headerRow.createEl('th');
 		patternHeader.setText('Pattern');
-		patternHeader.style.textAlign = 'left';
-		patternHeader.style.padding = '5px';
-		patternHeader.style.width = '40%';
+		patternHeader.addClass('regex-th');
+		patternHeader.addClass('regex-th-pattern');
 		
 		// Replacement header
 		const replacementHeader = headerRow.createEl('th');
 		replacementHeader.setText('Replacement');
-		replacementHeader.style.textAlign = 'left';
-		replacementHeader.style.padding = '5px';
-		replacementHeader.style.width = '40%';
+		replacementHeader.addClass('regex-th');
+		replacementHeader.addClass('regex-th-replacement');
 		
 		// Actions header
 		const actionsHeader = headerRow.createEl('th');
-		actionsHeader.style.width = '20%';
-		actionsHeader.style.padding = '5px';
+		actionsHeader.addClass('regex-th');
+		actionsHeader.addClass('regex-th-actions');
 		
 		// Create the table body
 		const tbody = table.createEl('tbody');
@@ -487,14 +254,14 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			
 			// Pattern cell
 			const patternCell = row.createEl('td');
-			patternCell.style.padding = '5px';
+			patternCell.addClass('regex-td');
 			
 			// Pattern input
 			const patternInput = document.createElement('input');
 			patternInput.type = 'text';
 			patternInput.value = replacement.pattern;
 			patternInput.placeholder = 'Regular expression pattern';
-			patternInput.style.width = '100%';
+			patternInput.addClass('regex-input');
 			patternInput.addEventListener('change', async () => {
 				this.plugin.settings.htmlRegexReplacements[index].pattern = patternInput.value;
 				await this.plugin.saveSettings();
@@ -503,14 +270,14 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			
 			// Replacement cell
 			const replacementCell = row.createEl('td');
-			replacementCell.style.padding = '5px';
+			replacementCell.addClass('regex-td');
 			
 			// Replacement input
 			const replacementInput = document.createElement('input');
 			replacementInput.type = 'text';
 			replacementInput.value = replacement.replacement;
 			replacementInput.placeholder = 'Replacement value (can use $1, $2, etc.)';
-			replacementInput.style.width = '100%';
+			replacementInput.addClass('regex-input');
 			replacementInput.addEventListener('change', async () => {
 				this.plugin.settings.htmlRegexReplacements[index].replacement = replacementInput.value;
 				await this.plugin.saveSettings();
@@ -519,8 +286,8 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			
 			// Actions cell
 			const actionsCell = row.createEl('td');
-			actionsCell.style.padding = '5px';
-			actionsCell.style.textAlign = 'center';
+			actionsCell.addClass('regex-td');
+			actionsCell.addClass('regex-td-actions');
 			
 			// Remove button
 			const removeButton = document.createElement('button');
@@ -538,11 +305,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			const emptyRow = tbody.createEl('tr');
 			const emptyCell = emptyRow.createEl('td');
 			emptyCell.colSpan = 3;
-			emptyCell.style.textAlign = 'center';
-			emptyCell.style.padding = '10px';
-			emptyCell.style.fontStyle = 'italic';
-			emptyCell.style.color = 'var(--text-faint)';
-			emptyCell.style.opacity = '0.7';
+			emptyCell.addClass('regex-empty-message');
 			emptyCell.setText('No replacements defined. Click "Add Replacement" to add one.');
 		}
 		
@@ -634,14 +397,12 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			});
 		
 		// Create a container for the regex replacement rows
-		const markdownRegexContainer = containerEl.createDiv('markdown-regex-replacements-container');
-		markdownRegexContainer.style.marginLeft = '40px';
-		markdownRegexContainer.style.marginBottom = '20px';
+		const markdownRegexContainer = containerEl.createDiv();
+		markdownRegexContainer.addClass('regex-replacements-container');
 		
 		// Create a table for the regex replacements
 		const markdownRegexTable = markdownRegexContainer.createEl('table');
-		markdownRegexTable.style.width = '100%';
-		markdownRegexTable.style.borderCollapse = 'collapse';
+		markdownRegexTable.addClass('regex-table');
 		
 		// Create the header row
 		const markdownRegexThead = markdownRegexTable.createEl('thead');
@@ -650,21 +411,19 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 		// Pattern header
 		const markdownRegexPatternHeader = markdownRegexHeaderRow.createEl('th');
 		markdownRegexPatternHeader.setText('Pattern');
-		markdownRegexPatternHeader.style.textAlign = 'left';
-		markdownRegexPatternHeader.style.padding = '5px';
-		markdownRegexPatternHeader.style.width = '40%';
+		markdownRegexPatternHeader.addClass('regex-th');
+		markdownRegexPatternHeader.addClass('regex-th-pattern');
 		
 		// Replacement header
 		const markdownRegexReplacementHeader = markdownRegexHeaderRow.createEl('th');
 		markdownRegexReplacementHeader.setText('Replacement');
-		markdownRegexReplacementHeader.style.textAlign = 'left';
-		markdownRegexReplacementHeader.style.padding = '5px';
-		markdownRegexReplacementHeader.style.width = '40%';
+		markdownRegexReplacementHeader.addClass('regex-th');
+		markdownRegexReplacementHeader.addClass('regex-th-replacement');
 		
 		// Actions header
 		const markdownRegexActionsHeader = markdownRegexHeaderRow.createEl('th');
-		markdownRegexActionsHeader.style.width = '20%';
-		markdownRegexActionsHeader.style.padding = '5px';
+		markdownRegexActionsHeader.addClass('regex-th');
+		markdownRegexActionsHeader.addClass('regex-th-actions');
 		
 		// Create the table body
 		const markdownRegexTbody = markdownRegexTable.createEl('tbody');
@@ -675,14 +434,14 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			
 			// Pattern cell
 			const patternCell = row.createEl('td');
-			patternCell.style.padding = '5px';
+			patternCell.addClass('regex-td');
 			
 			// Pattern input
 			const patternInput = document.createElement('input');
 			patternInput.type = 'text';
 			patternInput.value = replacement.pattern;
 			patternInput.placeholder = 'Regular expression pattern';
-			patternInput.style.width = '100%';
+			patternInput.addClass('regex-input');
 			patternInput.addEventListener('change', async () => {
 				this.plugin.settings.markdownRegexReplacements[index].pattern = patternInput.value;
 				await this.plugin.saveSettings();
@@ -691,14 +450,14 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			
 			// Replacement cell
 			const replacementCell = row.createEl('td');
-			replacementCell.style.padding = '5px';
+			replacementCell.addClass('regex-td');
 			
 			// Replacement input
 			const replacementInput = document.createElement('input');
 			replacementInput.type = 'text';
 			replacementInput.value = replacement.replacement;
 			replacementInput.placeholder = 'Replacement value (can use $1, $2, etc.)';
-			replacementInput.style.width = '100%';
+			replacementInput.addClass('regex-input');
 			replacementInput.addEventListener('change', async () => {
 				this.plugin.settings.markdownRegexReplacements[index].replacement = replacementInput.value;
 				await this.plugin.saveSettings();
@@ -707,8 +466,8 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			
 			// Actions cell
 			const actionsCell = row.createEl('td');
-			actionsCell.style.padding = '5px';
-			actionsCell.style.textAlign = 'center';
+			actionsCell.addClass('regex-td');
+			actionsCell.addClass('regex-td-actions');
 			
 			// Remove button
 			const removeButton = document.createElement('button');
@@ -726,11 +485,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			const emptyRow = markdownRegexTbody.createEl('tr');
 			const emptyCell = emptyRow.createEl('td');
 			emptyCell.colSpan = 3;
-			emptyCell.style.textAlign = 'center';
-			emptyCell.style.padding = '10px';
-			emptyCell.style.fontStyle = 'italic';
-			emptyCell.style.color = 'var(--text-faint)';
-			emptyCell.style.opacity = '0.7';
+			emptyCell.addClass('regex-empty-message');
 			emptyCell.setText('No replacements defined. Click "Add Replacement" to add one.');
 		}
 	}
