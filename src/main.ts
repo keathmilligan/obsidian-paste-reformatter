@@ -163,10 +163,11 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 
 		containerEl.empty();
 		
-		containerEl.createEl('h3', {text: 'HTML Transformations'});
-		containerEl.createEl('p', {
-			text: 'These settings control how the HTML content is processed before being converted to Markdown.'
-		}).addClass('setting-item-description');
+		// HTML Transformations
+		new Setting(containerEl)
+			.setName('HTML transformations')
+			.setHeading()
+			.setDesc('Control how the HTML content is processed before being converted to Markdown.');
 				
 		new Setting(containerEl)
 			.setName('Remove empty elements')
@@ -189,11 +190,11 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 				}));
 		
 		new Setting(containerEl)
-			.setName('HTML Regex Replacements')
+			.setName('HTML regex replacements')
 			.setDesc('Apply regular expression replacements to the HTML content before converting to Markdown. You can use $1, $2, etc. to reference capture groups.')
 			.addButton(button => {
 				button
-					.setButtonText('Add Replacement')
+					.setButtonText('Add replacement')
 					.setCta()
 					.onClick(() => {
 						// Check if there's already an empty row
@@ -306,16 +307,16 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			const emptyCell = emptyRow.createEl('td');
 			emptyCell.colSpan = 3;
 			emptyCell.addClass('regex-empty-message');
-			emptyCell.setText('No replacements defined. Click "Add Replacement" to add one.');
+			emptyCell.setText('No replacements defined. Click "Add replacement" to add one.');
 		}
 		
-		containerEl.createEl('h3', {text: 'Markdown Transformations'});
-		containerEl.createEl('p', {
-			text: 'These settings control how the Markdown content is adjusted after HTML conversion or when pasted as plain text.'
-		}).addClass('setting-item-description');
-				
 		new Setting(containerEl)
-			.setName('Max Heading Level')
+			.setName('Markdown transformations')
+			.setDesc('Control how the Markdown content is adjusted after HTML conversion or when pasted as plain text.')
+			.setHeading();
+		
+		new Setting(containerEl)
+			.setName('Max heading level')
 			.setDesc('The maximum heading level to allow when reformatting pasted content (H1 is treated as disabled)')
 			.addDropdown(dropdown => dropdown
 				.addOptions({
@@ -369,11 +370,11 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 				}));
 		
 		new Setting(containerEl)
-			.setName('Markdown Regex Replacements')
+			.setName('Markdown regex replacements')
 			.setDesc('Apply regular expression replacements to the Markdown content after HTML conversion. You can use $1, $2, etc. to reference capture groups.')
 			.addButton(button => {
 				button
-					.setButtonText('Add Replacement')
+					.setButtonText('Add replacement')
 					.setCta()
 					.onClick(() => {
 						// Check if there's already an empty row
@@ -486,7 +487,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			const emptyCell = emptyRow.createEl('td');
 			emptyCell.colSpan = 3;
 			emptyCell.addClass('regex-empty-message');
-			emptyCell.setText('No replacements defined. Click "Add Replacement" to add one.');
+			emptyCell.setText('No replacements defined. Click "Add replacement" to add one.');
 		}
 	}
 
