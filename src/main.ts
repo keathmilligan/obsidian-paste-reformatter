@@ -11,17 +11,19 @@ interface RegexReplacement {
 }
 
 interface PasteReformmatterSettings {
-	maxHeadingLevel: number;
-	removeEmptyElements: boolean;
-	cascadeHeadingLevels: boolean;
-	contextualCascade: boolean;
-	stripLineBreaks: boolean;
-	removeEmptyLines: boolean;
-	htmlRegexReplacements: RegexReplacement[];
-	markdownRegexReplacements: RegexReplacement[];
+	pasteOverride: boolean; // Whether to override the default paste behavior
+	maxHeadingLevel: number; // The maximum heading level to allow (1-6, where 1 is disabled)
+	removeEmptyElements: boolean; // Whether to remove empty elements when reformatting pasted content
+	cascadeHeadingLevels: boolean; // Whether to cascade heading levels (e.g., H1→H2→H3 becomes H2→H3→H4 when max level is H2)
+	contextualCascade: boolean; // Whether to cascade headings based on the current context (e.g., if cursor is in an H2 section, headings will start from H3)
+	stripLineBreaks: boolean; // Whether to strip hard line breaks (br tags) when reformatting pasted content
+	removeEmptyLines: boolean; // Whether to remove blank lines in the Markdown output
+	htmlRegexReplacements: RegexReplacement[]; // Regular expression replacements to apply to the HTML content before converting to Markdown
+	markdownRegexReplacements: RegexReplacement[]; // Regular expression replacements to apply to the Markdown content after HTML conversion
 }
 
 const DEFAULT_SETTINGS: PasteReformmatterSettings = {
+	pasteOverride: true,
 	maxHeadingLevel: 1,
 	removeEmptyElements: false,
 	cascadeHeadingLevels: true,
@@ -43,6 +45,49 @@ export default class PasteReformatter extends Plugin {
 
 		// Register paste event
 		this.registerEvent(this.app.workspace.on("editor-paste", event => this.onPaste(event)));
+
+		// Register discrete command for paste reformatting
+		this.addCommand({
+            id: 'reformat-and-paste',
+            name: 'Reformat and Paste',
+            callback: async () => {
+                try {
+                    // Get clipboard data using navigator API
+                    const clipboardItems = await navigator.clipboard.read();
+                    
+                    // Create a DataTransfer object
+                    const dataTransfer = new DataTransfer();
+                    
+                    // Process clipboard items
+                    for (const item of clipboardItems) {
+                        // Check for HTML content
+                        if (item.types.includes('text/html')) {
+                            const blob = await item.getType('text/html');
+                            const html = await blob.text();
+                            dataTransfer.setData('text/html', html);
+                        }
+                        
+                        // Check for plain text content
+                        if (item.types.includes('text/plain')) {
+                            const blob = await item.getType('text/plain');
+                            const text = await blob.text();
+                            dataTransfer.setData('text/plain', text);
+                        }
+                    }
+                    
+                    // Process the clipboard data
+					if (dataTransfer.types.includes('text/html') && dataTransfer.types.includes('text/plain')) {
+						this.doPaste(dataTransfer);
+					} else {
+                        new Notice("Clipboard does not contain HTML or plain text content.");
+					}
+                    
+                } catch (error) {
+                    console.error("Error accessing clipboard:", error);
+                    new Notice("Error accessing clipboard. Try using regular paste instead.");
+                }
+            }
+        });
 	}
 
 	onunload() {
@@ -56,22 +101,16 @@ export default class PasteReformatter extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	onPaste(event: ClipboardEvent) {
-		// Check if there's content in the clipboard
-		const clipboardData = event.clipboardData;
-		if (!clipboardData) {
-			return;
-		}
-		
+	doPaste(clipboardData: DataTransfer): boolean {
 		// Get the active editor using non-deprecated API
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) {
-			return;
+			return false;
 		}
 		
 		const editor = activeView.editor;
 		if (!editor) {
-			return;
+			return false;
 		}
 		
 		try {
@@ -83,8 +122,6 @@ export default class PasteReformatter extends Plugin {
 			if (clipboardData.types.includes('text/html')) {
 				// Process as HTML
 				const html = clipboardData.getData('text/html');
-
-				// console.log("HTML content:", html);
 				
 				// Transform HTML before converting to Markdown
 				const result = transformHTML(html, this.settings);
@@ -100,7 +137,8 @@ export default class PasteReformatter extends Plugin {
 				originalMarkdown = clipboardData.getData('text/plain');
 			} else {
 				// No supported format found
-				return;
+				console.debug("No HTML or plain text content found in clipboard");
+				return false;
 			}
 			
 			// Get the current context for contextual cascade
@@ -113,21 +151,39 @@ export default class PasteReformatter extends Plugin {
 			const markdownResult = transformMarkdown(originalMarkdown, this.settings, contextLevel);
 			appliedMarkdownTransformations = markdownResult.appliedTransformations;
 			
-			// Replace the current selection with the converted markdown
-			console.debug(`Original Markdown: ${originalMarkdown}`);
-			console.debug(`Transformed Markdown: ${markdownResult.markdown}`);
-			editor.replaceSelection(markdownResult.markdown);
-			
-			// Prevent the default paste behavior
-			event.preventDefault();
-			
 			// Show notification
 			if (appliedHTMLTransformations || appliedMarkdownTransformations) {
+				// Replace the current selection with the converted markdown
+				editor.replaceSelection(markdownResult.markdown);
 				new Notice(`Reformatted pasted content`);
+				return true;
+			} else {
+				return false;
 			}
 		} catch (error) {
 			console.error("Error processing paste content:", error);
 			new Notice("Error processing paste content");
+			return false
+		}
+	}
+
+	onPaste(event: ClipboardEvent) {
+		if (this.settings.pasteOverride) {
+			// Check if there's content in the clipboard
+			const clipboardData = event.clipboardData;
+			if (!clipboardData) {
+				return;
+			}
+			
+			// Process the clipboard data
+			if (this.doPaste(clipboardData)) {
+				// Prevent the default paste behavior
+				console.debug("Default paste behavior overridden by Paste Reformatter plugin");
+				event.preventDefault();
+			} else {
+				// If the plugin didn't handle the paste, allow the default behavior
+				console.debug("Paste Reformatter plugin did not handle paste, allowing default behavior");
+			}
 		}
 	}
 
@@ -170,6 +226,16 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 
 		containerEl.empty();
 		
+		new Setting(containerEl)
+			.setName('Override default paste behavior')
+			.setDesc('Alter the behavior of the default paste action to reformat pasted content.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.pasteOverride)
+				.onChange(async (value) => {
+					this.plugin.settings.pasteOverride = value;
+					await this.plugin.saveSettings();
+				}));
+				
 		// HTML Transformations
 		new Setting(containerEl)
 			.setName('HTML transformations')
