@@ -2,6 +2,11 @@
 
 A plugin for [Obsidian](https://obsidian.md) that reformats pasted HTML and plain text content, giving you precise control over how content is transformed when pasted into your notes.
 
+* Use RegEx to transform HTML and Markdown.
+* Reformat HTML before converting to Markdown for better formatting results.
+* Automatically adjust pasted heading levels to match content.
+* Strip blank lines and elements.
+
 ## Installation
 
 ### From Obsidian Community Plugins
@@ -33,11 +38,28 @@ The Paste Reformatter plugin automatically processes content when you paste it i
 
 A notification will appear briefly indicating whether HTML or plain text content was reformatted.
 
+### Commands
+
+> Note: commands are prefixed with "Paste Reformatter:" in the hot-key list.
+
+|Command|Description|
+|-|-|
+|**Reformat and Paste**|By default, Paste Reformatter overrides Obsidian's normal paste behavior. Alternatively, you can disable this behavior (see below) and bind a hot-key to this command.|
+
+### Potential Conflicts
+
+Paste Reformatter can potentially conflict with other Obsidian plugins that override the default paste behavior. To mitigate this, Paste Reformatter will only prevent the default handling of the paste event if it actually performs a transformation on the pasted text. Otherwise, it will allow the default behavior to take place. This won't prevent all potential collisions, however. So if you run into problems, disable "Override default paste behavior" and bind a hotkey to the "Paste and Reformat" command. 
+
 ## Configuration
 
 ![alt text](image.png)
 
-The plugin settings are divided into two main categories that mirror the transformation pipeline:
+### General Settings
+
+#### Override default paste behavior
+
+When this setting is enabled, the default behavior of Obsidian's Paste function will be enhanced. Otherwise,
+**Reformat and Paste** command can be bound to an alternative hot-key to get enhanced paste behavior.
 
 ### HTML Transformations
 
