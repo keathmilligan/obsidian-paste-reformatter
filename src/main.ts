@@ -75,8 +75,9 @@ export default class PasteReformatter extends Plugin {
 		}
 		
 		try {
-			let markdown = '';
-			let contentType = '';
+			let originalMarkdown = '';
+			let appliedHTMLTransformations = false;
+			let appliedMarkdownTransformations = false;
 			
 			// Check if HTML format is available
 			if (clipboardData.types.includes('text/html')) {
@@ -86,16 +87,17 @@ export default class PasteReformatter extends Plugin {
 				// console.log("HTML content:", html);
 				
 				// Transform HTML before converting to Markdown
-				const transformedHTML = transformHTML(html, this.settings);
+				const result = transformHTML(html, this.settings);
+				console.debug(`Original HTML: ${html}`);
+				console.debug(`Transformed HTML: ${result.html}`);
 				
 				// Use Obsidian's built-in htmlToMarkdown function
-				markdown = htmlToMarkdown(transformedHTML);
+				originalMarkdown = htmlToMarkdown(result.html);
 
-				contentType = 'HTML';
+				appliedHTMLTransformations = result.appliedTransformations;
 			} else if (clipboardData.types.includes('text/plain')) {
 				// Process as plain text - treat it as already being Markdown
-				markdown = clipboardData.getData('text/plain');
-				contentType = 'plain text';
+				originalMarkdown = clipboardData.getData('text/plain');
 			} else {
 				// No supported format found
 				return;
@@ -108,16 +110,21 @@ export default class PasteReformatter extends Plugin {
 			}
 			
 			// Apply settings to transform the markdown
-			markdown = transformMarkdown(markdown, this.settings, contextLevel);
+			const markdownResult = transformMarkdown(originalMarkdown, this.settings, contextLevel);
+			appliedMarkdownTransformations = markdownResult.appliedTransformations;
 			
 			// Replace the current selection with the converted markdown
-			editor.replaceSelection(markdown);
+			console.debug(`Original Markdown: ${originalMarkdown}`);
+			console.debug(`Transformed Markdown: ${markdownResult.markdown}`);
+			editor.replaceSelection(markdownResult.markdown);
 			
 			// Prevent the default paste behavior
 			event.preventDefault();
 			
 			// Show notification
-			new Notice(`Reformatted ${contentType} content`);
+			if (appliedHTMLTransformations || appliedMarkdownTransformations) {
+				new Notice(`Reformatted pasted content`);
+			}
 		} catch (error) {
 			console.error("Error processing paste content:", error);
 			new Notice("Error processing paste content");

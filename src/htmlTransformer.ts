@@ -5,22 +5,25 @@
  * Transforms the HTML content before converting it to Markdown
  * @param html The HTML content to transform
  * @param settings The settings to use for transformation
- * @returns The transformed HTML content
+ * @returns An object containing the transformed HTML content and whether any transformations were applied
  */
 export function transformHTML(
-    html: string, 
-    settings: { 
-        htmlRegexReplacements: Array<{pattern: string, replacement: string}>, 
-        stripLineBreaks: boolean, 
-        removeEmptyElements: boolean 
+    html: string,
+    settings: {
+        htmlRegexReplacements: Array<{pattern: string, replacement: string}>,
+        stripLineBreaks: boolean,
+        removeEmptyElements: boolean
     }
-): string {
+): { html: string, appliedTransformations: boolean } {
+    let appliedTransformations = false;
+
     // Apply regex replacements first
     if (settings.htmlRegexReplacements && settings.htmlRegexReplacements.length > 0) {
         for (const replacement of settings.htmlRegexReplacements) {
             try {
                 const regex = new RegExp(replacement.pattern, 'g');
                 html = html.replace(regex, replacement.replacement);
+                appliedTransformations = true;
             } catch (error) {
                 console.error(`Error applying regex replacement: ${error}`);
             }
@@ -38,6 +41,7 @@ export function transformHTML(
         brElements.forEach(br => {
             br.remove();
         });
+        appliedTransformations = true;
     } else {
         // If we're not stripping line breaks, convert them to special paragraph tags
         // that will be preserved even if empty elements are removed
@@ -72,8 +76,8 @@ export function transformHTML(
                 return false;
             }
             
-            // Check if it has any text content (excluding whitespace)
-            if (element.textContent && element.textContent.trim().length > 0) {
+            // Check if it has any text content (include whitespace)
+            if (element.textContent && element.textContent.length > 0) {
                 return false;
             }
             
@@ -99,6 +103,7 @@ export function transformHTML(
                 if (isElementEmpty(element)) {
                     element.remove();
                     emptyElementsFound = true;
+                    appliedTransformations = true;
                 }
             });
             
@@ -109,7 +114,10 @@ export function transformHTML(
         }
     }
     
-    // Return the modified HTML
+    // Return the modified HTML and transformation status
     const serializer = new XMLSerializer();
-    return serializer.serializeToString(doc.body);
+    return {
+        html: serializer.serializeToString(doc.body),
+        appliedTransformations
+    };
 }

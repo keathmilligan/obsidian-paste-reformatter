@@ -6,26 +6,29 @@
  * @param markdown The markdown content to transform
  * @param settings The settings to use for transformation
  * @param contextLevel The current heading level for contextual cascade (0 if not in a heading section)
- * @returns The transformed markdown content
+ * @returns An object containing the transformed markdown content and whether any transformations were applied
  */
 export function transformMarkdown(
-    markdown: string, 
-    settings: { 
-        markdownRegexReplacements: Array<{pattern: string, replacement: string}>, 
-        contextualCascade: boolean, 
-        maxHeadingLevel: number, 
-        cascadeHeadingLevels: boolean, 
-        stripLineBreaks: boolean, 
-        removeEmptyLines: boolean 
-    }, 
+    markdown: string,
+    settings: {
+        markdownRegexReplacements: Array<{pattern: string, replacement: string}>,
+        contextualCascade: boolean,
+        maxHeadingLevel: number,
+        cascadeHeadingLevels: boolean,
+        stripLineBreaks: boolean,
+        removeEmptyLines: boolean
+    },
     contextLevel: number = 0
-): string {
+): { markdown: string, appliedTransformations: boolean } {
+    let appliedTransformations = false;
+
     // Apply regex replacements if defined
     if (settings.markdownRegexReplacements && settings.markdownRegexReplacements.length > 0) {
         for (const replacement of settings.markdownRegexReplacements) {
             try {
                 const regex = new RegExp(replacement.pattern, 'g');
                 markdown = markdown.replace(regex, replacement.replacement);
+                appliedTransformations = true;
             } catch (error) {
                 console.error(`Error applying markdown regex replacement: ${error}`);
             }
@@ -59,6 +62,7 @@ export function transformMarkdown(
 
             console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
             
+            appliedTransformations = (newLevel !== currentLevel);
             // Return the new heading with the adjusted level
             return '#'.repeat(newLevel) + ' ';
         });
@@ -88,7 +92,9 @@ export function transformMarkdown(
             }
             
             console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
-            
+
+            appliedTransformations = (newLevel !== currentLevel);
+
             // Return the new heading with the adjusted level
             return '#'.repeat(newLevel) + ' ';
         });
@@ -118,7 +124,9 @@ export function transformMarkdown(
             });
             
             // Join the filtered lines back together
+            const originalMarkdown = markdown;
             markdown = filteredLines.join('\n');
+            appliedTransformations = (originalMarkdown !== markdown);
         }
         
         // Now replace our placeholders with actual line breaks
@@ -134,11 +142,16 @@ export function transformMarkdown(
             
             // Filter out all empty lines
             const filteredLines = lines.filter(line => line.trim() !== '');
-            
+
             // Join the filtered lines back together
+            const originalMarkdown = markdown;
             markdown = filteredLines.join('\n');
+            appliedTransformations = (originalMarkdown !== markdown);
         }
     }
     
-    return markdown;
+    return {
+        markdown,
+        appliedTransformations
+    };
 }
