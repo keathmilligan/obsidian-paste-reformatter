@@ -52,42 +52,36 @@ export default class PasteReformatter extends Plugin {
             name: 'Reformat and Paste',
             callback: async () => {
                 try {
-                    // Get clipboard data using navigator API
-                    const clipboardItems = await navigator.clipboard.read();
-                    
-                    // Create a DataTransfer object
-                    const dataTransfer = new DataTransfer();
-                    
-                    // Process clipboard items
-                    for (const item of clipboardItems) {
-                        // Check for HTML content
-                        if (item.types.includes('text/html')) {
-                            const blob = await item.getType('text/html');
-                            const html = await blob.text();
-                            dataTransfer.setData('text/html', html);
-                        }
-                        
-                        // Check for plain text content
-                        if (item.types.includes('text/plain')) {
-                            const blob = await item.getType('text/plain');
-                            const text = await blob.text();
-                            dataTransfer.setData('text/plain', text);
-                        }
-                    }
-                    
-                    // Process the clipboard data
-					if (dataTransfer.types.includes('text/html') && dataTransfer.types.includes('text/plain')) {
+                    // Get clipboard data
+                    const dataTransfer = await this.getClipboardData();
+                    if (dataTransfer) {
+						// Paste it into the active editor
 						this.doPaste(dataTransfer);
 					} else {
                         new Notice("Clipboard does not contain HTML or plain text content.");
 					}
-                    
                 } catch (error) {
                     console.error("Error accessing clipboard:", error);
                     new Notice("Error accessing clipboard. Try using regular paste instead.");
                 }
             }
         });
+
+		// Register command to paste with all markdown escaped
+		this.addCommand({
+			id: 'paste-with-escaped-markdown',
+			name: 'Paste with Escaped Markdown',
+			callback: async () => {
+				// Get clipboard data
+				const dataTransfer = await this.getClipboardData();
+				if (dataTransfer) {
+					// Paste it into the active editor
+					this.doPaste(dataTransfer, true);
+				} else {
+					new Notice("Clipboard does not contain HTML or plain text content.");
+				}
+			}
+		});
 	}
 
 	onunload() {
@@ -101,7 +95,47 @@ export default class PasteReformatter extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	doPaste(clipboardData: DataTransfer): boolean {
+	async getClipboardData(): Promise<DataTransfer | null> {
+		// Use the Clipboard API to read clipboard data
+		try {
+			// Get clipboard data using navigator API
+			const clipboardItems = await navigator.clipboard.read();
+			
+			// Create a DataTransfer object
+			const dataTransfer = new DataTransfer();
+			
+			// Process clipboard items
+			for (const item of clipboardItems) {
+				// Check for HTML content
+				if (item.types.includes('text/html')) {
+					const blob = await item.getType('text/html');
+					const html = await blob.text();
+					dataTransfer.setData('text/html', html);
+				}
+				
+				// Check for plain text content
+				if (item.types.includes('text/plain')) {
+					const blob = await item.getType('text/plain');
+					const text = await blob.text();
+					dataTransfer.setData('text/plain', text);
+				}
+			}
+			
+			// Process the clipboard data
+			if (dataTransfer.types.includes('text/html') || dataTransfer.types.includes('text/plain')) {
+				return dataTransfer;
+			} else {
+				new Notice("Clipboard does not contain HTML or plain text content.");
+			}
+			
+		} catch (error) {
+			console.error("Error accessing clipboard:", error);
+			new Notice("Error accessing clipboard. Try using regular paste instead.");
+		}
+		return null; // Return null if clipboard data is not available
+	}
+
+	doPaste(clipboardData: DataTransfer, escapeMarkdown: boolean = false): boolean {
 		// Get the active editor using non-deprecated API
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) {
@@ -148,7 +182,7 @@ export default class PasteReformatter extends Plugin {
 			}
 			
 			// Apply settings to transform the markdown
-			const markdownResult = transformMarkdown(originalMarkdown, this.settings, contextLevel);
+			const markdownResult = transformMarkdown(originalMarkdown, this.settings, contextLevel, escapeMarkdown);
 			appliedMarkdownTransformations = markdownResult.appliedTransformations;
 			
 			// Show notification
