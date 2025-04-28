@@ -27,8 +27,11 @@ export function transformMarkdown(
         for (const replacement of settings.markdownRegexReplacements) {
             try {
                 const regex = new RegExp(replacement.pattern, 'g');
+                const originalMarkdown = markdown;
                 markdown = markdown.replace(regex, replacement.replacement);
-                appliedTransformations = true;
+                if (originalMarkdown !== markdown) {
+                    appliedTransformations = true;
+                }
             } catch (error) {
                 console.error(`Error applying markdown regex replacement: ${error}`);
             }
