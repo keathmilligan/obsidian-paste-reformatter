@@ -45,6 +45,7 @@ A notification will appear briefly indicating whether HTML or plain text content
 |Command|Description|
 |-|-|
 |**Reformat and Paste**|By default, Paste Reformatter overrides Obsidian's normal paste behavior. Alternatively, you can disable this behavior (see below) and bind a hot-key to this command.|
+|**Paste with Escaped Markdown**|Pastes text with all markdown escaped. For example, `[Data]` becomes `\[Data]`.
 
 ### Potential Conflicts
 
