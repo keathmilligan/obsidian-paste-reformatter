@@ -22,8 +22,11 @@ export function transformHTML(
         for (const replacement of settings.htmlRegexReplacements) {
             try {
                 const regex = new RegExp(replacement.pattern, 'g');
+                const originalHtml = html;
                 html = html.replace(regex, replacement.replacement);
-                appliedTransformations = true;
+                if (originalHtml !== html) {
+                    appliedTransformations = true;
+                }
             } catch (error) {
                 console.error(`Error applying regex replacement: ${error}`);
             }
