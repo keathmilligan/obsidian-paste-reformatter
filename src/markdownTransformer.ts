@@ -18,7 +18,8 @@ export function transformMarkdown(
         stripLineBreaks: boolean,
         removeEmptyLines: boolean
     },
-    contextLevel: number = 0
+    contextLevel: number = 0,
+    escapeMarkdown: boolean = false
 ): { markdown: string, appliedTransformations: boolean } {
     let appliedTransformations = false;
 
@@ -38,71 +39,110 @@ export function transformMarkdown(
         }
     }
     
-    // Find all heading lines
-    const headingRegex = /^(#{1,6})\s/gm;
-    
-    // Process headings based on settings
-    if (settings.contextualCascade && contextLevel > 0) {
-        let delta = -1;
-        let cascading = false;
+    if (!escapeMarkdown) {
+        // Find all heading lines
+        const headingRegex = /^(#{1,6})\s/gm;
+        
+        // Process headings based on settings
+        if (settings.contextualCascade && contextLevel > 0) {
+            let delta = -1;
+            let cascading = false;
 
-        // Contextual cascade is enabled and we have a context level
-        markdown = markdown.replace(headingRegex, (match, hashes) => {
-            const currentLevel = hashes.length;
-            let newLevel = currentLevel;
+            // Contextual cascade is enabled and we have a context level
+            markdown = markdown.replace(headingRegex, (match, hashes) => {
+                const currentLevel = hashes.length;
+                let newLevel = currentLevel;
 
-            if (cascading) {
-                // Cascade subsequent levels below the context level
-                newLevel = Math.min(currentLevel + delta, 6);
-                console.log(`contextual cascade: delta ${delta}`);
-            } else if (currentLevel <= contextLevel) {
-                // Intiate contextual cascading
-                newLevel = Math.min(contextLevel + 1, 6);
-                delta = newLevel - currentLevel;
-                cascading = true;
-                console.log(`contextual cascade initiated: delta: ${delta}`);
-            } // else nothing to do
-
-            console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
-            
-            appliedTransformations = (newLevel !== currentLevel);
-            // Return the new heading with the adjusted level
-            return '#'.repeat(newLevel) + ' ';
-        });
-    } else if (settings.maxHeadingLevel > 1) {
-        let delta = -1;
-        let cascading = false;
-
-        markdown = markdown.replace(headingRegex, (match, hashes) => {
-            const currentLevel = hashes.length;
-            let newLevel = currentLevel;
-            
-            if (settings.cascadeHeadingLevels) {
-                // If cascading is enabled, start cascading subsequent headings down if needed
                 if (cascading) {
-                    // Cascade subsequent headers down, don't go deeper than H6
+                    // Cascade subsequent levels below the context level
                     newLevel = Math.min(currentLevel + delta, 6);
-                    console.log(`cascading: delta: ${delta}`);
-                } else if (currentLevel < settings.maxHeadingLevel) {
-                    newLevel = settings.maxHeadingLevel;
+                    console.log(`contextual cascade: delta ${delta}`);
+                } else if (currentLevel <= contextLevel) {
+                    // Intiate contextual cascading
+                    newLevel = Math.min(contextLevel + 1, 6);
                     delta = newLevel - currentLevel;
-                    cascading = true;  // we need to cascade
-                    console.log(`cascade initiated: delta: ${delta}`);
-                } // else nothing to do, heading is good as is
-            } else {
-                // Cascading not enabled, just cap heading levels at max
-                newLevel = Math.max(currentLevel, settings.maxHeadingLevel)
-            }
+                    cascading = true;
+                    console.log(`contextual cascade initiated: delta: ${delta}`);
+                } // else nothing to do
+
+                console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
+                
+                appliedTransformations = (newLevel !== currentLevel);
+                // Return the new heading with the adjusted level
+                return '#'.repeat(newLevel) + ' ';
+            });
+        } else if (settings.maxHeadingLevel > 1) {
+            let delta = -1;
+            let cascading = false;
+
+            markdown = markdown.replace(headingRegex, (match, hashes) => {
+                const currentLevel = hashes.length;
+                let newLevel = currentLevel;
+                
+                if (settings.cascadeHeadingLevels) {
+                    // If cascading is enabled, start cascading subsequent headings down if needed
+                    if (cascading) {
+                        // Cascade subsequent headers down, don't go deeper than H6
+                        newLevel = Math.min(currentLevel + delta, 6);
+                        console.log(`cascading: delta: ${delta}`);
+                    } else if (currentLevel < settings.maxHeadingLevel) {
+                        newLevel = settings.maxHeadingLevel;
+                        delta = newLevel - currentLevel;
+                        cascading = true;  // we need to cascade
+                        console.log(`cascade initiated: delta: ${delta}`);
+                    } // else nothing to do, heading is good as is
+                } else {
+                    // Cascading not enabled, just cap heading levels at max
+                    newLevel = Math.max(currentLevel, settings.maxHeadingLevel)
+                }
+                
+                console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
+
+                appliedTransformations = (newLevel !== currentLevel);
+
+                // Return the new heading with the adjusted level
+                return '#'.repeat(newLevel) + ' ';
+            });
+        }
+    } else {
+        // If escaping markdown, we don't want to change headings
+        // Just escape the markdown content
+        const originalMarkdown = markdown;
+        
+        // Escape all Markdown syntax that Obsidian recognizes
+        // Headings, bold/italic, lists, links, images, code blocks, blockquotes, etc.
+        markdown = markdown
+            // Escape headings
+            .replace(/^(#{1,6}\s)/gm, '\\$1')
+            // Escape bold/italic
+            .replace(/(\*\*|__|\*|_)/g, '\\$1')
+            // Escape lists
+            .replace(/^(\s*[-+*]\s)/gm, '\\$1')
+            // Escape numbered lists
+            .replace(/^(\s*\d+\.\s)/gm, '\\$1')
+            // Escape links and images
+            .replace(/(!?\[)/g, '\\$1')
+            // Escape code blocks and inline code
+            .replace(/(`{1,3})/g, '\\$1')
+            // Escape blockquotes
+            .replace(/^(\s*>\s)/gm, '\\$1')
+            // Escape horizontal rules
+            .replace(/^(\s*[-*_]{3,}\s*)$/gm, '\\$1')
+            // Escape table syntax
+            .replace(/(\|)/g, '\\$1')
+            // Escape task lists
+            .replace(/^(\s*- \[ \])/gm, '\\$1')
+            // Escape HTML tags that might be interpreted, but only if they're not already inside backticks
+            .replace(/(`.*?`)|(<\/?[a-z][^>]*>)/gi, (match, codeContent, htmlTag) => {
+                // If this is a code block (first capture group), return it unchanged
+                if (codeContent) return codeContent;
+                // Otherwise it's an HTML tag that needs escaping
+                return htmlTag ? '`' + htmlTag + '`' : match;
+            });
             
-            console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
-
-            appliedTransformations = (newLevel !== currentLevel);
-
-            // Return the new heading with the adjusted level
-            return '#'.repeat(newLevel) + ' ';
-        });
+        appliedTransformations = (originalMarkdown !== markdown);
     }
-    
+
     // First handle the special line break markers
     let preserveLineBreaks = !settings.stripLineBreaks;
     
