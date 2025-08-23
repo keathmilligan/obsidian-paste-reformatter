@@ -255,6 +255,37 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	private scrollNewRowIntoView(type: 'html' | 'markdown'): void {
+		// Find the appropriate table based on type
+		const containerClass = type === 'html' ? 'regex-replacements-container' : 'regex-replacements-container';
+		const containers = this.containerEl.querySelectorAll('.regex-replacements-container');
+		
+		// Get the correct container (HTML is first, Markdown is second)
+		const targetContainer = type === 'html' ? containers[0] : containers[1];
+		
+		if (targetContainer) {
+			const table = targetContainer.querySelector('table');
+			if (table) {
+				const tbody = table.querySelector('tbody');
+				if (tbody) {
+					const rows = tbody.querySelectorAll('tr');
+					const lastRow = rows[rows.length - 1];
+					
+					if (lastRow) {
+						// Check if the row is already visible
+						const containerRect = this.containerEl.getBoundingClientRect();
+						const rowRect = lastRow.getBoundingClientRect();
+						
+						// If the row is not fully visible, scroll it into view
+						if (rowRect.bottom > containerRect.bottom || rowRect.top < containerRect.top) {
+							lastRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+						}
+					}
+				}
+			}
+		}
+	}
+
 	display(): void {
 		const {containerEl} = this;
 
@@ -316,9 +347,14 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 								pattern: '',
 								replacement: ''
 							});
-							// Save settings and refresh display
+							// Save settings and refresh display, preserving scroll position and scrolling new row into view if needed
+							const scrollTop = this.containerEl.scrollTop;
 							this.plugin.saveSettings().then(() => {
 								this.display();
+								// Restore original scroll position
+								this.containerEl.scrollTop = scrollTop;
+								// Then scroll the newly added row into view if it's not visible
+								this.scrollNewRowIntoView('html');
 							});
 						}
 					});
@@ -496,9 +532,14 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 								pattern: '',
 								replacement: ''
 							});
-							// Save settings and refresh display
+							// Save settings and refresh display, preserving scroll position and scrolling new row into view if needed
+							const scrollTop = this.containerEl.scrollTop;
 							this.plugin.saveSettings().then(() => {
 								this.display();
+								// Restore original scroll position
+								this.containerEl.scrollTop = scrollTop;
+								// Then scroll the newly added row into view if it's not visible
+								this.scrollNewRowIntoView('markdown');
 							});
 						}
 					});
