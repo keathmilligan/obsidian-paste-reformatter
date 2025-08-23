@@ -1,7 +1,7 @@
 // Paste Reformatter - A plugin that re-formats pasted HTML text in Obsidian.
 // Copyright (C) 2025 by Keath Milligan.
 
-import { App, MarkdownView, Plugin, PluginSettingTab, Setting, htmlToMarkdown, Notice } from 'obsidian';
+import { App, MarkdownView, Plugin, PluginSettingTab, Setting, htmlToMarkdown, Notice, setIcon } from 'obsidian';
 import { transformHTML } from './htmlTransformer';
 import { transformMarkdown } from './markdownTransformer';
 
@@ -329,36 +329,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 		
 		new Setting(containerEl)
 			.setName('HTML regex replacements')
-			.setDesc('Apply regular expression replacements to the HTML content before converting to Markdown. You can use $1, $2, etc. to reference capture groups.')
-			.addButton(button => {
-				button
-					.setButtonText('Add replacement')
-					.setCta()
-					.onClick(() => {
-						// Check if there's already an empty row
-						const hasEmptyRow = this.plugin.settings.htmlRegexReplacements.some(
-							replacement => replacement.pattern === '' && replacement.replacement === ''
-						);
-						
-						// Only add a new row if there isn't already an empty one
-						if (!hasEmptyRow) {
-							// Add a new empty replacement
-							this.plugin.settings.htmlRegexReplacements.push({
-								pattern: '',
-								replacement: ''
-							});
-							// Save settings and refresh display, preserving scroll position and scrolling new row into view if needed
-							const scrollTop = this.containerEl.scrollTop;
-							this.plugin.saveSettings().then(() => {
-								this.display();
-								// Restore original scroll position
-								this.containerEl.scrollTop = scrollTop;
-								// Then scroll the newly added row into view if it's not visible
-								this.scrollNewRowIntoView('html');
-							});
-						}
-					});
-			});
+			.setDesc('Apply regular expression replacements to the HTML content before converting to Markdown. You can use $1, $2, etc. to reference capture groups.');
 		
 		// Create a container for the regex replacement rows
 		const regexContainer = containerEl.createDiv();
@@ -433,15 +404,27 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			actionsCell.addClass('regex-td');
 			actionsCell.addClass('regex-td-actions');
 			
-			// Remove button
-			const removeButton = document.createElement('button');
-			removeButton.textContent = 'Remove';
-			removeButton.addEventListener('click', async () => {
+			// Remove icon
+			const removeIcon = document.createElement('span');
+			removeIcon.className = 'regex-remove-icon';
+			removeIcon.setAttribute('title', 'Delete');
+			removeIcon.setAttribute('aria-label', 'Delete');
+			removeIcon.setAttribute('role', 'button');
+			removeIcon.setAttribute('tabindex', '0');
+			setIcon(removeIcon, 'trash-2');
+			removeIcon.addEventListener('click', async () => {
 				this.plugin.settings.htmlRegexReplacements.splice(index, 1);
 				await this.plugin.saveSettings();
 				this.display(); // Refresh the display
 			});
-			actionsCell.appendChild(removeButton);
+			// Add keyboard support for accessibility
+			removeIcon.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					removeIcon.click();
+				}
+			});
+			actionsCell.appendChild(removeIcon);
 		});
 		
 		// Add a message if no replacements are defined
@@ -450,8 +433,48 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			const emptyCell = emptyRow.createEl('td');
 			emptyCell.colSpan = 3;
 			emptyCell.addClass('regex-empty-message');
-			emptyCell.setText('No replacements defined. Click "Add replacement" to add one.');
+			emptyCell.setText('No replacements defined. Click the + icon below to add one.');
 		}
+		
+		// Add plus-circle icon for adding new HTML replacements
+		const htmlAddIcon = regexContainer.createEl('div');
+		htmlAddIcon.className = 'regex-add-icon';
+		htmlAddIcon.setAttribute('title', 'Add replacement');
+		htmlAddIcon.setAttribute('aria-label', 'Add replacement');
+		htmlAddIcon.setAttribute('role', 'button');
+		htmlAddIcon.setAttribute('tabindex', '0');
+		setIcon(htmlAddIcon, 'plus-circle');
+		htmlAddIcon.addEventListener('click', () => {
+			// Check if there's already an empty row
+			const hasEmptyRow = this.plugin.settings.htmlRegexReplacements.some(
+				replacement => replacement.pattern === '' && replacement.replacement === ''
+			);
+			
+			// Only add a new row if there isn't already an empty one
+			if (!hasEmptyRow) {
+				// Add a new empty replacement
+				this.plugin.settings.htmlRegexReplacements.push({
+					pattern: '',
+					replacement: ''
+				});
+				// Save settings and refresh display, preserving scroll position and scrolling new row into view if needed
+				const scrollTop = this.containerEl.scrollTop;
+				this.plugin.saveSettings().then(() => {
+					this.display();
+					// Restore original scroll position
+					this.containerEl.scrollTop = scrollTop;
+					// Then scroll the newly added row into view if it's not visible
+					this.scrollNewRowIntoView('html');
+				});
+			}
+		});
+		// Add keyboard support for accessibility
+		htmlAddIcon.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				htmlAddIcon.click();
+			}
+		});
 		
 		new Setting(containerEl)
 			.setName('Markdown transformations')
@@ -514,36 +537,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 		
 		new Setting(containerEl)
 			.setName('Markdown regex replacements')
-			.setDesc('Apply regular expression replacements to the Markdown content after HTML conversion. You can use $1, $2, etc. to reference capture groups.')
-			.addButton(button => {
-				button
-					.setButtonText('Add replacement')
-					.setCta()
-					.onClick(() => {
-						// Check if there's already an empty row
-						const hasEmptyRow = this.plugin.settings.markdownRegexReplacements.some(
-							replacement => replacement.pattern === '' && replacement.replacement === ''
-						);
-						
-						// Only add a new row if there isn't already an empty one
-						if (!hasEmptyRow) {
-							// Add a new empty replacement
-							this.plugin.settings.markdownRegexReplacements.push({
-								pattern: '',
-								replacement: ''
-							});
-							// Save settings and refresh display, preserving scroll position and scrolling new row into view if needed
-							const scrollTop = this.containerEl.scrollTop;
-							this.plugin.saveSettings().then(() => {
-								this.display();
-								// Restore original scroll position
-								this.containerEl.scrollTop = scrollTop;
-								// Then scroll the newly added row into view if it's not visible
-								this.scrollNewRowIntoView('markdown');
-							});
-						}
-					});
-			});
+			.setDesc('Apply regular expression replacements to the Markdown content after HTML conversion. You can use $1, $2, etc. to reference capture groups.');
 		
 		// Create a container for the regex replacement rows
 		const markdownRegexContainer = containerEl.createDiv();
@@ -618,15 +612,27 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			actionsCell.addClass('regex-td');
 			actionsCell.addClass('regex-td-actions');
 			
-			// Remove button
-			const removeButton = document.createElement('button');
-			removeButton.textContent = 'Remove';
-			removeButton.addEventListener('click', async () => {
+			// Remove icon
+			const removeIcon = document.createElement('span');
+			removeIcon.className = 'regex-remove-icon';
+			removeIcon.setAttribute('title', 'Delete');
+			removeIcon.setAttribute('aria-label', 'Delete');
+			removeIcon.setAttribute('role', 'button');
+			removeIcon.setAttribute('tabindex', '0');
+			setIcon(removeIcon, 'trash-2');
+			removeIcon.addEventListener('click', async () => {
 				this.plugin.settings.markdownRegexReplacements.splice(index, 1);
 				await this.plugin.saveSettings();
 				this.display(); // Refresh the display
 			});
-			actionsCell.appendChild(removeButton);
+			// Add keyboard support for accessibility
+			removeIcon.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					removeIcon.click();
+				}
+			});
+			actionsCell.appendChild(removeIcon);
 		});
 		
 		// Add a message if no replacements are defined
@@ -635,8 +641,48 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 			const emptyCell = emptyRow.createEl('td');
 			emptyCell.colSpan = 3;
 			emptyCell.addClass('regex-empty-message');
-			emptyCell.setText('No replacements defined. Click "Add replacement" to add one.');
+			emptyCell.setText('No replacements defined. Click the + icon below to add one.');
 		}
+		
+		// Add plus-circle icon for adding new Markdown replacements
+		const markdownAddIcon = markdownRegexContainer.createEl('div');
+		markdownAddIcon.className = 'regex-add-icon';
+		markdownAddIcon.setAttribute('title', 'Add replacement');
+		markdownAddIcon.setAttribute('aria-label', 'Add replacement');
+		markdownAddIcon.setAttribute('role', 'button');
+		markdownAddIcon.setAttribute('tabindex', '0');
+		setIcon(markdownAddIcon, 'plus-circle');
+		markdownAddIcon.addEventListener('click', () => {
+			// Check if there's already an empty row
+			const hasEmptyRow = this.plugin.settings.markdownRegexReplacements.some(
+				replacement => replacement.pattern === '' && replacement.replacement === ''
+			);
+			
+			// Only add a new row if there isn't already an empty one
+			if (!hasEmptyRow) {
+				// Add a new empty replacement
+				this.plugin.settings.markdownRegexReplacements.push({
+					pattern: '',
+					replacement: ''
+				});
+				// Save settings and refresh display, preserving scroll position and scrolling new row into view if needed
+				const scrollTop = this.containerEl.scrollTop;
+				this.plugin.saveSettings().then(() => {
+					this.display();
+					// Restore original scroll position
+					this.containerEl.scrollTop = scrollTop;
+					// Then scroll the newly added row into view if it's not visible
+					this.scrollNewRowIntoView('markdown');
+				});
+			}
+		});
+		// Add keyboard support for accessibility
+		markdownAddIcon.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				markdownAddIcon.click();
+			}
+		});
 	}
 
 }
