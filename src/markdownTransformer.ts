@@ -146,51 +146,56 @@ export function transformMarkdown(
     // First handle the special line break markers
     let preserveLineBreaks = !settings.stripLineBreaks;
     
-    // If we're not stripping line breaks, we need to handle the special markers
-    if (preserveLineBreaks) {
-        // Replace special line break markers with a unique placeholder that won't be affected by empty line removal
-        const lineBreakPlaceholder = '___LINE_BREAK_PLACEHOLDER___';
-        markdown = markdown.replace(/<p class="preserve-line-break"[^>]*>.*?<\/p>/g, lineBreakPlaceholder);
-        markdown = markdown.replace(/<p data-preserve="true"[^>]*>.*?<\/p>/g, lineBreakPlaceholder);
+    // Process empty lines with a sliding window approach
+    if (settings.removeEmptyLines) {
+        // First, normalize line endings to ensure consistent processing
+        markdown = markdown.replace(/\r\n/g, '\n');
         
-        // Remove empty lines if enabled
-        if (settings.removeEmptyLines) {
-            // First, normalize line endings to ensure consistent processing
-            markdown = markdown.replace(/\r\n/g, '\n');
+        // Split the content into lines
+        const lines = markdown.split('\n');
+        const filteredLines: string[] = [];
+        
+        // Sliding window processing with peek capability
+        for (let i = 0; i < lines.length; i++) {
+            const currentLine = lines[i];
+            const nextLine = i + 1 < lines.length ? lines[i + 1] : null;
+            const isCurrentLineEmpty = currentLine.trim() === '';
             
-            // Split the content into lines
-            const lines = markdown.split('\n');
+            // Rule 1: Preserve line breaks - check for special markers
+            if (preserveLineBreaks) {
+                const hasPreserveMarker = 
+                    /<p class="preserve-line-break"[^>]*>.*?<\/p>/.test(currentLine) ||
+                    /<p data-preserve="true"[^>]*>.*?<\/p>/.test(currentLine);
+                
+                if (hasPreserveMarker) {
+                    // Insert an empty line instead of the marker
+                    filteredLines.push('');
+                    continue;
+                }
+            }
             
-            // Filter out empty lines, but keep our placeholders
-            const filteredLines = lines.filter(line => {
-                return line.trim() !== '' || line.includes(lineBreakPlaceholder);
-            });
+            // Rule 2: Keep empty line if next line is a horizontal rule (3+ dashes)
+            if (isCurrentLineEmpty && nextLine !== null && /^\s*-{3,}\s*$/.test(nextLine)) {
+                filteredLines.push(currentLine);
+                continue;
+            }
             
-            // Join the filtered lines back together
-            const originalMarkdown = markdown;
-            markdown = filteredLines.join('\n');
-            appliedTransformations = (originalMarkdown !== markdown);
+            // Rule 3: Keep empty line if next line is the beginning of a table
+            if (isCurrentLineEmpty && nextLine !== null && /^\s*\|.*\|/.test(nextLine)) {
+                filteredLines.push(currentLine);
+                continue;
+            }
+            
+            // Default: Remove empty lines unless they meet the above criteria
+            if (!isCurrentLineEmpty) {
+                filteredLines.push(currentLine);
+            }
         }
         
-        // Now replace our placeholders with actual line breaks
-        markdown = markdown.replace(new RegExp(lineBreakPlaceholder, 'g'), '\n');
-    } else {
-        // If we're stripping line breaks, just remove empty lines normally
-        if (settings.removeEmptyLines) {
-            // First, normalize line endings to ensure consistent processing
-            markdown = markdown.replace(/\r\n/g, '\n');
-            
-            // Split the content into lines
-            const lines = markdown.split('\n');
-            
-            // Filter out all empty lines
-            const filteredLines = lines.filter(line => line.trim() !== '');
-
-            // Join the filtered lines back together
-            const originalMarkdown = markdown;
-            markdown = filteredLines.join('\n');
-            appliedTransformations = (originalMarkdown !== markdown);
-        }
+        // Join the filtered lines back together
+        const originalMarkdown = markdown;
+        markdown = filteredLines.join('\n');
+        appliedTransformations = appliedTransformations || (originalMarkdown !== markdown);
     }
     
     return {
