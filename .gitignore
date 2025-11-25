@@ -33,3 +33,9 @@ coverage/
 # Obsidian
 .obsidian/
 .trash/
+
+# Gen AI tools
+.roo/
+.opencode/
+.claude/
+
