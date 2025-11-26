@@ -17,6 +17,7 @@ interface PasteReformmatterSettings {
 	cascadeHeadingLevels: boolean; // Whether to cascade heading levels (e.g., H1→H2→H3 becomes H2→H3→H4 when max level is H2)
 	contextualCascade: boolean; // Whether to cascade headings based on the current context (e.g., if cursor is in an H2 section, headings will start from H3)
 	stripLineBreaks: boolean; // Whether to strip hard line breaks (br tags) when reformatting pasted content
+	convertToSingleSpaced: boolean; // Whether to collapse multiple consecutive blank lines into a single blank line
 	removeEmptyLines: boolean; // Whether to remove blank lines in the Markdown output
 	htmlRegexReplacements: RegexReplacement[]; // Regular expression replacements to apply to the HTML content before converting to Markdown
 	markdownRegexReplacements: RegexReplacement[]; // Regular expression replacements to apply to the Markdown content after HTML conversion
@@ -29,6 +30,7 @@ const DEFAULT_SETTINGS: PasteReformmatterSettings = {
 	cascadeHeadingLevels: true,
 	contextualCascade: true,
 	stripLineBreaks: false,
+	convertToSingleSpaced: false,
 	removeEmptyLines: false,
 	htmlRegexReplacements: [],
 	markdownRegexReplacements: []
@@ -525,6 +527,22 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		
+		const singleSpacedSetting = new Setting(containerEl)
+			.setName('Convert to single-spaced')
+			.setDesc('Collapse multiple consecutive blank lines into a single blank line')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.convertToSingleSpaced)
+				.setDisabled(this.plugin.settings.removeEmptyLines)
+				.onChange(async (value) => {
+					this.plugin.settings.convertToSingleSpaced = value;
+					await this.plugin.saveSettings();
+				}));
+		
+		// Add visual indication when disabled
+		if (this.plugin.settings.removeEmptyLines) {
+			singleSpacedSetting.settingEl.addClass('paste-reformatter-disabled-setting');
+		}
+		
 		new Setting(containerEl)
 			.setName('Remove empty lines')
 			.setDesc('Remove blank lines in the Markdown output')
@@ -533,6 +551,9 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.removeEmptyLines = value;
 					await this.plugin.saveSettings();
+					
+					// Refresh the display to update the disabled state of "Convert to single-spaced"
+					this.display();
 				}));
 		
 		new Setting(containerEl)

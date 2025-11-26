@@ -16,6 +16,7 @@ export function transformMarkdown(
         maxHeadingLevel: number,
         cascadeHeadingLevels: boolean,
         stripLineBreaks: boolean,
+        convertToSingleSpaced: boolean,
         removeEmptyLines: boolean
     },
     contextLevel: number = 0,
@@ -145,6 +146,21 @@ export function transformMarkdown(
 
     // First handle the special line break markers
     let preserveLineBreaks = !settings.stripLineBreaks;
+    
+    // Convert multiple consecutive blank lines to single blank line if enabled
+    // Skip this if removeEmptyLines is enabled (optimization - lines will be removed anyway)
+    if (settings.convertToSingleSpaced && !settings.removeEmptyLines) {
+        // Normalize line endings to ensure consistent processing
+        markdown = markdown.replace(/\r\n/g, '\n');
+        
+        // Replace 2 or more consecutive newlines with exactly 2 newlines (1 blank line)
+        const originalMarkdown = markdown;
+        markdown = markdown.replace(/\n{3,}/g, '\n\n');
+        
+        if (originalMarkdown !== markdown) {
+            appliedTransformations = true;
+        }
+    }
     
     // Process empty lines with a sliding window approach
     if (settings.removeEmptyLines) {
