@@ -26,13 +26,23 @@ export function transformMarkdown(
 
     // Apply regex replacements if defined
     if (settings.markdownRegexReplacements && settings.markdownRegexReplacements.length > 0) {
-        for (const replacement of settings.markdownRegexReplacements) {
+        for (const regex_replacement of settings.markdownRegexReplacements) {
             try {
-                const regex = new RegExp(replacement.pattern, 'g');
+                const regex = new RegExp(regex_replacement.pattern, 'g');
+                const replacement = regex_replacement.replacement
+                  .replace(/\\r\\n/g, '\r\n')
+                  .replace(/\\n/g, '\n')
+                  .replace(/\\r/g, '\r')
+                  .replace(/\\t/g, '\t')
+                  .replace(/\\'/g, "'")
+                  .replace(/\\"/g, '"')
+                  .replace(/\\\\/g, '\\');
                 const originalMarkdown = markdown;
-                markdown = markdown.replace(regex, replacement.replacement);
+                // console.log(`applying ${JSON.stringify(regex_replacement.pattern)} replacement ${JSON.stringify(replacement)}`); console.log(JSON.stringify(markdown));
+                markdown = markdown.replace(regex, replacement);
                 if (originalMarkdown !== markdown) {
                     appliedTransformations = true;
+                    // console.log("replaced text")
                 }
             } catch (error) {
                 console.error(`Error applying markdown regex replacement: ${error}`);
