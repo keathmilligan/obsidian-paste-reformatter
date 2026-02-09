@@ -36,7 +36,7 @@ The Paste Reformatter plugin automatically processes content when you paste it i
 4. Applies Markdown transformations (heading adjustments, line break handling, regex string replacement)
 5. Inserts the transformed content at the cursor position
 
-A notification will appear briefly indicating whether HTML or plain text content was reformatted.
+A notification will appear briefly indicating whether HTML or plain text content was reformatted. This can be disabled in settings.
 
 ### Commands
 
@@ -61,6 +61,10 @@ Paste Reformatter can potentially conflict with other Obsidian plugins that over
 
 When this setting is enabled, the default behavior of Obsidian's Paste function will be enhanced. Otherwise,
 **Reformat and Paste** command can be bound to an alternative hot-key to get enhanced paste behavior.
+
+#### Show paste notifications
+
+When enabled, a notice appears after reformatting content. Disable this to hide notifications.
 
 ### HTML Transformations
 

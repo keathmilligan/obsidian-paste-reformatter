@@ -12,6 +12,7 @@ interface RegexReplacement {
 
 interface PasteReformmatterSettings {
 	pasteOverride: boolean; // Whether to override the default paste behavior
+	showPasteNotifications: boolean; // Whether to show a notice after successful paste reformatting
 	maxHeadingLevel: number; // The maximum heading level to allow (1-6, where 1 is disabled)
 	removeEmptyElements: boolean; // Whether to remove empty elements when reformatting pasted content
 	cascadeHeadingLevels: boolean; // Whether to cascade heading levels (e.g., H1→H2→H3 becomes H2→H3→H4 when max level is H2)
@@ -25,6 +26,7 @@ interface PasteReformmatterSettings {
 
 const DEFAULT_SETTINGS: PasteReformmatterSettings = {
 	pasteOverride: true,
+	showPasteNotifications: true,
 	maxHeadingLevel: 1,
 	removeEmptyElements: false,
 	cascadeHeadingLevels: true,
@@ -191,7 +193,9 @@ export default class PasteReformatter extends Plugin {
 			if (appliedHTMLTransformations || appliedMarkdownTransformations) {
 				// Replace the current selection with the converted markdown
 				editor.replaceSelection(markdownResult.markdown);
-				new Notice(`Reformatted pasted content`);
+				if (this.settings.showPasteNotifications) {
+					new Notice(`Reformatted pasted content`);
+				}
 				return true;
 			} else {
 				return false;
@@ -300,6 +304,16 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.pasteOverride)
 				.onChange(async (value) => {
 					this.plugin.settings.pasteOverride = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Show paste notifications')
+			.setDesc('Display a notice when pasted content is reformatted.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showPasteNotifications)
+				.onChange(async (value) => {
+					this.plugin.settings.showPasteNotifications = value;
 					await this.plugin.saveSettings();
 				}));
 				
