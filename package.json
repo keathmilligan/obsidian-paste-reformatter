@@ -1,8 +1,8 @@
 {
-  "name": "obsidian-sample-plugin",
+  "name": "obsidian-paste-reformatter",
   "version": "1.4.0",
-  "description": "This is a sample plugin for Obsidian (https://obsidian.md)",
-  "main": "dist/main.js",
+  "description": "Reformat pasted text for precise control.",
+  "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
