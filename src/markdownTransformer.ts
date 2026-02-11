@@ -78,7 +78,7 @@ export function transformMarkdown(
 
                 console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
                 
-                appliedTransformations = (newLevel !== currentLevel);
+                appliedTransformations = appliedTransformations || (newLevel !== currentLevel);
                 // Return the new heading with the adjusted level
                 return '#'.repeat(newLevel) + ' ';
             });
@@ -109,7 +109,7 @@ export function transformMarkdown(
                 
                 console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
 
-                appliedTransformations = (newLevel !== currentLevel);
+                appliedTransformations = appliedTransformations || (newLevel !== currentLevel);
 
                 // Return the new heading with the adjusted level
                 return '#'.repeat(newLevel) + ' ';
