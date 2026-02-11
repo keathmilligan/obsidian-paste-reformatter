@@ -207,11 +207,43 @@ export default class PasteReformatter extends Plugin {
     }
   }
 
+  /**
+   * Determines whether the cursor is currently inside a fenced code block.
+   * Scans backward from the cursor line, counting opening and closing fences
+   * (triple-backtick or triple-tilde lines). If there is an unclosed opening
+   * fence before the cursor, the cursor is inside a code block.
+   * @param editor The editor instance
+   * @returns true if the cursor is inside a fenced code block
+   */
+  isCursorInCodeBlock(editor: any): boolean {
+    const cursor = editor.getCursor();
+    const currentLine = cursor.line;
+    let insideCodeBlock = false;
+
+    for (let line = 0; line <= currentLine; line++) {
+      const lineText = editor.getLine(line);
+      // Match opening/closing fences: ``` or ~~~ at the start of a line,
+      // optionally followed by a language identifier (only on opening fences)
+      if (/^(`{3,}|~{3,})/.test(lineText)) {
+        insideCodeBlock = !insideCodeBlock;
+      }
+    }
+
+    return insideCodeBlock;
+  }
+
   onPaste(event: ClipboardEvent) {
     if (this.settings.pasteOverride) {
       // Check if there's content in the clipboard
       const clipboardData = event.clipboardData;
       if (!clipboardData) {
+        return;
+      }
+
+      // Skip reformatting when the cursor is inside a fenced code block
+      const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (activeView?.editor && this.isCursorInCodeBlock(activeView.editor)) {
+        console.debug("Paste Reformatter plugin skipping paste: cursor is inside a code block");
         return;
       }
       
