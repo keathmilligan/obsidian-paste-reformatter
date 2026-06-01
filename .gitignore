@@ -21,11 +21,6 @@ dist/
 dist
 build/
 
-# Dependency lock files (keep package.json)
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
 # Testing
 coverage/
 .nyc_output/
