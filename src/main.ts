@@ -234,7 +234,12 @@ export default class PasteReformatter extends Plugin {
   }
 
   onPaste(event: ClipboardEvent) {
+    if (event.defaultPrevented) {
+      return;
+    }
+
     if (this.settings.pasteOverride) {
+
       // Check if there's content in the clipboard
       const clipboardData = event.clipboardData;
       if (!clipboardData) {
