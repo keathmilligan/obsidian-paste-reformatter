@@ -1,6 +1,6 @@
 {
   "name": "obsidian-paste-reformatter",
-  "version": "1.4.0",
+  "version": "1.4.2",
   "description": "Reformat pasted text for precise control.",
   "main": "main.js",
   "scripts": {
