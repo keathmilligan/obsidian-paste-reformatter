@@ -261,14 +261,24 @@ export default class PasteReformatter extends Plugin {
   }
 
   /**
-   * Determines the current heading level at the cursor position
+   * Determines the current heading level at the cursor position.
+   * If text is selected, the selection is excluded from the search
+   * since it will be replaced by the pasted content.
    * @param editor The editor instance
    * @returns The heading level (1-6) or 0 if not in a heading section
    */
   getCurrentHeadingLevel(editor: any): number {
     // Get the current cursor position
     const cursor = editor.getCursor();
-    const currentLine = cursor.line;
+    let currentLine = cursor.line;
+
+    // If text is selected, ignore the selected text when looking backward
+    // since it is going to be replaced
+    if (editor.somethingSelected()) {
+      const anchor = editor.getCursor('anchor');
+      const head = editor.getCursor('head');
+      currentLine = Math.min(anchor.line, head.line) - 1;
+    }
 
     // Look backward from the current line to find the nearest heading
     for (let line = currentLine; line >= 0; line--) {
