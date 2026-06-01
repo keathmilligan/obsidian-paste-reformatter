@@ -11,7 +11,7 @@
 export function transformMarkdown(
     markdown: string,
     settings: {
-        markdownRegexReplacements: Array<{pattern: string, replacement: string}>,
+        markdownRegexReplacements: Array<{ pattern: string, replacement: string }>,
         contextualCascade: boolean,
         maxHeadingLevel: number,
         cascadeHeadingLevels: boolean,
@@ -24,36 +24,38 @@ export function transformMarkdown(
 ): { markdown: string, appliedTransformations: boolean } {
     let appliedTransformations = false;
 
+    console.log(`original: ${markdown}`);
+
     // Apply regex replacements if defined
     if (settings.markdownRegexReplacements && settings.markdownRegexReplacements.length > 0) {
         for (const regex_replacement of settings.markdownRegexReplacements) {
             try {
                 const regex = new RegExp(regex_replacement.pattern, 'g');
                 const replacement = regex_replacement.replacement
-                  .replace(/\\r\\n/g, '\r\n')
-                  .replace(/\\n/g, '\n')
-                  .replace(/\\r/g, '\r')
-                  .replace(/\\t/g, '\t')
-                  .replace(/\\'/g, "'")
-                  .replace(/\\"/g, '"')
-                  .replace(/\\\\/g, '\\');
+                    .replace(/\\r\\n/g, '\r\n')
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\r/g, '\r')
+                    .replace(/\\t/g, '\t')
+                    .replace(/\\'/g, "'")
+                    .replace(/\\"/g, '"')
+                    .replace(/\\\\/g, '\\');
                 const originalMarkdown = markdown;
                 // console.log(`applying ${JSON.stringify(regex_replacement.pattern)} replacement ${JSON.stringify(replacement)}`); console.log(JSON.stringify(markdown));
                 markdown = markdown.replace(regex, replacement);
                 if (originalMarkdown !== markdown) {
                     appliedTransformations = true;
-                    // console.log("replaced text")
+                    console.log(`regex replacements: ${markdown}`);
                 }
             } catch (error) {
                 console.error(`Error applying markdown regex replacement: ${error}`);
             }
         }
     }
-    
+
     if (!escapeMarkdown) {
         // Find all heading lines
         const headingRegex = /^(#{1,6})\s/gm;
-        
+
         // Process headings based on settings
         if (settings.contextualCascade && contextLevel > 0) {
             let delta = -1;
@@ -73,11 +75,11 @@ export function transformMarkdown(
                     newLevel = Math.min(contextLevel + 1, 6);
                     delta = newLevel - currentLevel;
                     cascading = true;
-                    console.log(`contextual cascade initiated: delta: ${delta}`);
+                    console.log(`*** contextual cascade initiated: delta: ${delta}`);
                 } // else nothing to do
 
                 console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
-                
+
                 appliedTransformations = appliedTransformations || (newLevel !== currentLevel);
                 // Return the new heading with the adjusted level
                 return '#'.repeat(newLevel) + ' ';
@@ -89,7 +91,7 @@ export function transformMarkdown(
             markdown = markdown.replace(headingRegex, (match, hashes) => {
                 const currentLevel = hashes.length;
                 let newLevel = currentLevel;
-                
+
                 if (settings.cascadeHeadingLevels) {
                     // If cascading is enabled, start cascading subsequent headings down if needed
                     if (cascading) {
@@ -106,7 +108,7 @@ export function transformMarkdown(
                     // Cascading not enabled, just cap heading levels at max
                     newLevel = Math.max(currentLevel, settings.maxHeadingLevel)
                 }
-                
+
                 console.log(`result: current level: ${currentLevel}, new level: ${newLevel}`);
 
                 appliedTransformations = appliedTransformations || (newLevel !== currentLevel);
@@ -119,7 +121,7 @@ export function transformMarkdown(
         // If escaping markdown, we don't want to change headings
         // Just escape the markdown content
         const originalMarkdown = markdown;
-        
+
         // Escape all Markdown syntax that Obsidian recognizes
         // Headings, bold/italic, lists, links, images, code blocks, blockquotes, etc.
         markdown = markdown
@@ -150,80 +152,83 @@ export function transformMarkdown(
                 // Otherwise it's an HTML tag that needs escaping
                 return htmlTag ? '`' + htmlTag + '`' : match;
             });
-            
+
         appliedTransformations = (originalMarkdown !== markdown);
     }
 
+    console.log(`processed: ${markdown}`);
+
     // First handle the special line break markers
     let preserveLineBreaks = !settings.stripLineBreaks;
-    
+
     // Convert multiple consecutive blank lines to single blank line if enabled
     // Skip this if removeEmptyLines is enabled (optimization - lines will be removed anyway)
     if (settings.convertToSingleSpaced && !settings.removeEmptyLines) {
         // Normalize line endings to ensure consistent processing
         markdown = markdown.replace(/\r\n/g, '\n');
-        
+
         // Replace 2 or more consecutive newlines with exactly 2 newlines (1 blank line)
         const originalMarkdown = markdown;
         markdown = markdown.replace(/\n{3,}/g, '\n\n');
-        
+
         if (originalMarkdown !== markdown) {
             appliedTransformations = true;
         }
     }
-    
+
     // Process empty lines with a sliding window approach
     if (settings.removeEmptyLines) {
         // First, normalize line endings to ensure consistent processing
         markdown = markdown.replace(/\r\n/g, '\n');
-        
+
         // Split the content into lines
         const lines = markdown.split('\n');
         const filteredLines: string[] = [];
-        
+
         // Sliding window processing with peek capability
         for (let i = 0; i < lines.length; i++) {
             const currentLine = lines[i];
             const nextLine = i + 1 < lines.length ? lines[i + 1] : null;
             const isCurrentLineEmpty = currentLine.trim() === '';
-            
+
             // Rule 1: Preserve line breaks - check for special markers
             if (preserveLineBreaks) {
-                const hasPreserveMarker = 
+                const hasPreserveMarker =
                     /<p class="preserve-line-break"[^>]*>.*?<\/p>/.test(currentLine) ||
                     /<p data-preserve="true"[^>]*>.*?<\/p>/.test(currentLine);
-                
+
                 if (hasPreserveMarker) {
                     // Insert an empty line instead of the marker
                     filteredLines.push('');
                     continue;
                 }
             }
-            
+
             // Rule 2: Keep empty line if next line is a horizontal rule (3+ dashes)
             if (isCurrentLineEmpty && nextLine !== null && /^\s*-{3,}\s*$/.test(nextLine)) {
                 filteredLines.push(currentLine);
                 continue;
             }
-            
+
             // Rule 3: Keep empty line if next line is the beginning of a table
             if (isCurrentLineEmpty && nextLine !== null && /^\s*\|.*\|/.test(nextLine)) {
                 filteredLines.push(currentLine);
                 continue;
             }
-            
+
             // Default: Remove empty lines unless they meet the above criteria
             if (!isCurrentLineEmpty) {
                 filteredLines.push(currentLine);
             }
         }
-        
+
         // Join the filtered lines back together
         const originalMarkdown = markdown;
         markdown = filteredLines.join('\n');
         appliedTransformations = appliedTransformations || (originalMarkdown !== markdown);
     }
-    
+
+    console.log(`final: ${markdown}`);
     return {
         markdown,
         appliedTransformations

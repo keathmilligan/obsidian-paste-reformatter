@@ -52,24 +52,24 @@ export default class PasteReformatter extends Plugin {
 
     // Register discrete command for paste reformatting
     this.addCommand({
-            id: 'reformat-and-paste',
-            name: 'Reformat and Paste',
-            callback: async () => {
-                try {
-                    // Get clipboard data
-                    const dataTransfer = await this.getClipboardData();
-                    if (dataTransfer) {
+      id: 'reformat-and-paste',
+      name: 'Reformat and Paste',
+      callback: async () => {
+        try {
+          // Get clipboard data
+          const dataTransfer = await this.getClipboardData();
+          if (dataTransfer) {
             // Paste it into the active editor
             this.doPaste(dataTransfer);
           } else {
-                        new Notice("Clipboard does not contain HTML or plain text content.");
+            new Notice("Clipboard does not contain HTML or plain text content.");
           }
-                } catch (error) {
-                    console.error("Error accessing clipboard:", error);
-                    new Notice("Error accessing clipboard. Try using regular paste instead.");
-                }
-            }
-        });
+        } catch (error) {
+          console.error("Error accessing clipboard:", error);
+          new Notice("Error accessing clipboard. Try using regular paste instead.");
+        }
+      }
+    });
 
     // Register command to paste with all markdown escaped
     this.addCommand({
@@ -104,10 +104,10 @@ export default class PasteReformatter extends Plugin {
     try {
       // Get clipboard data using navigator API
       const clipboardItems = await navigator.clipboard.read();
-      
+
       // Create a DataTransfer object
       const dataTransfer = new DataTransfer();
-      
+
       // Process clipboard items
       for (const item of clipboardItems) {
         // Check for HTML content
@@ -116,7 +116,7 @@ export default class PasteReformatter extends Plugin {
           const html = await blob.text();
           dataTransfer.setData('text/html', html);
         }
-        
+
         // Check for plain text content
         if (item.types.includes('text/plain')) {
           const blob = await item.getType('text/plain');
@@ -124,14 +124,14 @@ export default class PasteReformatter extends Plugin {
           dataTransfer.setData('text/plain', text);
         }
       }
-      
+
       // Process the clipboard data
       if (dataTransfer.types.includes('text/html') || dataTransfer.types.includes('text/plain')) {
         return dataTransfer;
       } else {
         new Notice("Clipboard does not contain HTML or plain text content.");
       }
-      
+
     } catch (error) {
       console.error("Error accessing clipboard:", error);
       new Notice("Error accessing clipboard. Try using regular paste instead.");
@@ -145,27 +145,27 @@ export default class PasteReformatter extends Plugin {
     if (!activeView) {
       return false;
     }
-    
+
     const editor = activeView.editor;
     if (!editor) {
       return false;
     }
-    
+
     try {
       let originalMarkdown = '';
       let appliedHTMLTransformations = false;
       let appliedMarkdownTransformations = false;
-      
+
       // Check if HTML format is available
       if (clipboardData.types.includes('text/html')) {
         // Process as HTML
         const html = clipboardData.getData('text/html');
-        
+
         // Transform HTML before converting to Markdown
         const result = transformHTML(html, this.settings);
-        console.debug(`Original HTML: ${html}`);
-        console.debug(`Transformed HTML: ${result.html}`);
-        
+        // console.log(`Original HTML: ${html}`);
+        console.log(`Transformed HTML: ${result.html}`);
+
         // Use Obsidian's built-in htmlToMarkdown function
         originalMarkdown = htmlToMarkdown(result.html);
 
@@ -175,20 +175,21 @@ export default class PasteReformatter extends Plugin {
         originalMarkdown = clipboardData.getData('text/plain');
       } else {
         // No supported format found
-        console.debug("No HTML or plain text content found in clipboard");
+        // console.log("No HTML or plain text content found in clipboard");
         return false;
       }
-      
+
       // Get the current context for contextual cascade
       let contextLevel = 0;
       if (this.settings.contextualCascade) {
         contextLevel = this.getCurrentHeadingLevel(editor);
       }
-      
+
       // Apply settings to transform the markdown
+      console.log(`original markdown: ${originalMarkdown}`);
       const markdownResult = transformMarkdown(originalMarkdown, this.settings, contextLevel, escapeMarkdown);
       appliedMarkdownTransformations = markdownResult.appliedTransformations;
-      
+
       // Show notification
       if (appliedHTMLTransformations || appliedMarkdownTransformations) {
         // Replace the current selection with the converted markdown
@@ -243,18 +244,18 @@ export default class PasteReformatter extends Plugin {
       // Skip reformatting when the cursor is inside a fenced code block
       const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (activeView?.editor && this.isCursorInCodeBlock(activeView.editor)) {
-        console.debug("Paste Reformatter plugin skipping paste: cursor is inside a code block");
+        console.log("Paste Reformatter plugin skipping paste: cursor is inside a code block");
         return;
       }
-      
+
       // Process the clipboard data
       if (this.doPaste(clipboardData)) {
         // Prevent the default paste behavior
-        console.debug("Default paste behavior overridden by Paste Reformatter plugin");
+        console.log("Default paste behavior overridden by Paste Reformatter plugin");
         event.preventDefault();
       } else {
         // If the plugin didn't handle the paste, allow the default behavior
-        console.debug("Paste Reformatter plugin did not handle paste, allowing default behavior");
+        console.log("Paste Reformatter plugin did not handle paste, allowing default behavior");
       }
     }
   }
@@ -268,18 +269,18 @@ export default class PasteReformatter extends Plugin {
     // Get the current cursor position
     const cursor = editor.getCursor();
     const currentLine = cursor.line;
-    
+
     // Look backward from the current line to find the nearest heading
     for (let line = currentLine; line >= 0; line--) {
       const lineText = editor.getLine(line);
       const headingMatch = lineText.match(/^(#{1,6})\s/);
-      
+
       if (headingMatch) {
         // Return the heading level (number of # characters)
         return headingMatch[1].length;
       }
     }
-    
+
     // No heading found above the cursor
     return 0;
   }
@@ -297,10 +298,10 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
     // Find the appropriate table based on type
     const containerClass = type === 'html' ? 'regex-replacements-container' : 'regex-replacements-container';
     const containers = this.containerEl.querySelectorAll('.regex-replacements-container');
-    
+
     // Get the correct container (HTML is first, Markdown is second)
     const targetContainer = type === 'html' ? containers[0] : containers[1];
-    
+
     if (targetContainer) {
       const table = targetContainer.querySelector('table');
       if (table) {
@@ -308,12 +309,12 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         if (tbody) {
           const rows = tbody.querySelectorAll('tr');
           const lastRow = rows[rows.length - 1];
-          
+
           if (lastRow) {
             // Check if the row is already visible
             const containerRect = this.containerEl.getBoundingClientRect();
             const rowRect = lastRow.getBoundingClientRect();
-            
+
             // If the row is not fully visible, scroll it into view
             if (rowRect.bottom > containerRect.bottom || rowRect.top < containerRect.top) {
               lastRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -325,10 +326,10 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
   }
 
   display(): void {
-    const {containerEl} = this;
+    const { containerEl } = this;
 
     containerEl.empty();
-    
+
     new Setting(containerEl)
       .setName('Override default paste behavior')
       .setDesc('Alter the behavior of the default paste action to reformat pasted content.')
@@ -348,13 +349,13 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
           this.plugin.settings.showPasteNotifications = value;
           await this.plugin.saveSettings();
         }));
-        
+
     // HTML Transformations
     new Setting(containerEl)
       .setName('HTML transformations')
       .setHeading()
       .setDesc('Control how the HTML content is processed before being converted to Markdown.');
-        
+
     new Setting(containerEl)
       .setName('Remove empty elements')
       .setDesc('Remove empty elements when reformatting pasted content')
@@ -364,7 +365,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
           this.plugin.settings.removeEmptyElements = value;
           await this.plugin.saveSettings();
         }));
-        
+
     new Setting(containerEl)
       .setName('Strip hard line breaks')
       .setDesc('Remove line breaks (br tags) when reformatting pasted content')
@@ -374,51 +375,51 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
           this.plugin.settings.stripLineBreaks = value;
           await this.plugin.saveSettings();
         }));
-    
+
     new Setting(containerEl)
       .setName('HTML regex replacements')
       .setDesc('Apply regular expression replacements to the HTML content before converting to Markdown. You can use $1, $2, etc. to reference capture groups.');
-    
+
     // Create a container for the regex replacement rows
     const regexContainer = containerEl.createDiv();
     regexContainer.addClass('regex-replacements-container');
-    
+
     // Create a table for the regex replacements
     const table = regexContainer.createEl('table');
     table.addClass('regex-table');
-    
+
     // Create the header row
     const thead = table.createEl('thead');
     const headerRow = thead.createEl('tr');
-    
+
     // Pattern header
     const patternHeader = headerRow.createEl('th');
     patternHeader.setText('Pattern');
     patternHeader.addClass('regex-th');
     patternHeader.addClass('regex-th-pattern');
-    
+
     // Replacement header
     const replacementHeader = headerRow.createEl('th');
     replacementHeader.setText('Replacement');
     replacementHeader.addClass('regex-th');
     replacementHeader.addClass('regex-th-replacement');
-    
+
     // Actions header
     const actionsHeader = headerRow.createEl('th');
     actionsHeader.addClass('regex-th');
     actionsHeader.addClass('regex-th-actions');
-    
+
     // Create the table body
     const tbody = table.createEl('tbody');
-    
+
     // Add a row for each replacement
     this.plugin.settings.htmlRegexReplacements.forEach((replacement, index) => {
       const row = tbody.createEl('tr');
-      
+
       // Pattern cell
       const patternCell = row.createEl('td');
       patternCell.addClass('regex-td');
-      
+
       // Pattern input
       const patternInput = document.createElement('input');
       patternInput.type = 'text';
@@ -430,11 +431,11 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       });
       patternCell.appendChild(patternInput);
-      
+
       // Replacement cell
       const replacementCell = row.createEl('td');
       replacementCell.addClass('regex-td');
-      
+
       // Replacement input
       const replacementInput = document.createElement('input');
       replacementInput.type = 'text';
@@ -446,12 +447,12 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       });
       replacementCell.appendChild(replacementInput);
-      
+
       // Actions cell
       const actionsCell = row.createEl('td');
       actionsCell.addClass('regex-td');
       actionsCell.addClass('regex-td-actions');
-      
+
       // Remove icon
       const removeIcon = document.createElement('span');
       removeIcon.className = 'regex-remove-icon';
@@ -474,7 +475,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
       });
       actionsCell.appendChild(removeIcon);
     });
-    
+
     // Add a message if no replacements are defined
     if (this.plugin.settings.htmlRegexReplacements.length === 0) {
       const emptyRow = tbody.createEl('tr');
@@ -483,7 +484,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
       emptyCell.addClass('regex-empty-message');
       emptyCell.setText('No replacements defined. Click the + icon below to add one.');
     }
-    
+
     // Add plus-circle icon for adding new HTML replacements
     const htmlAddIcon = regexContainer.createEl('div');
     htmlAddIcon.className = 'regex-add-icon';
@@ -497,7 +498,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
       const hasEmptyRow = this.plugin.settings.htmlRegexReplacements.some(
         replacement => replacement.pattern === '' && replacement.replacement === ''
       );
-      
+
       // Only add a new row if there isn't already an empty one
       if (!hasEmptyRow) {
         // Add a new empty replacement
@@ -523,12 +524,12 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         htmlAddIcon.click();
       }
     });
-    
+
     new Setting(containerEl)
       .setName('Markdown transformations')
       .setDesc('Control how the Markdown content is adjusted after HTML conversion or when pasted as plain text.')
       .setHeading();
-    
+
     new Setting(containerEl)
       .setName('Max heading level')
       .setDesc('The maximum heading level to allow when reformatting pasted content (H1 is treated as disabled)')
@@ -545,11 +546,11 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.maxHeadingLevel = parseInt(value);
           await this.plugin.saveSettings();
-          
+
           // Always refresh the display to update the cascade heading levels toggle visibility
           this.display();
         }));
-    
+
     // Only show cascade heading levels setting if max heading level is not H1 (disabled)
     if (this.plugin.settings.maxHeadingLevel > 1) {
       new Setting(containerEl)
@@ -562,7 +563,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }));
     }
-    
+
     new Setting(containerEl)
       .setName('Contextual cascade')
       .setDesc('Cascade headings based on the current context (e.g., if cursor is in an H2 section, headings will start from H3)')
@@ -572,7 +573,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
           this.plugin.settings.contextualCascade = value;
           await this.plugin.saveSettings();
         }));
-    
+
     const singleSpacedSetting = new Setting(containerEl)
       .setName('Convert to single-spaced')
       .setDesc('Collapse multiple consecutive blank lines into a single blank line')
@@ -583,12 +584,12 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
           this.plugin.settings.convertToSingleSpaced = value;
           await this.plugin.saveSettings();
         }));
-    
+
     // Add visual indication when disabled
     if (this.plugin.settings.removeEmptyLines) {
       singleSpacedSetting.settingEl.addClass('paste-reformatter-disabled-setting');
     }
-    
+
     new Setting(containerEl)
       .setName('Remove empty lines')
       .setDesc('Remove blank lines in the Markdown output')
@@ -597,55 +598,55 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.removeEmptyLines = value;
           await this.plugin.saveSettings();
-          
+
           // Refresh the display to update the disabled state of "Convert to single-spaced"
           this.display();
         }));
-    
+
     new Setting(containerEl)
       .setName('Markdown regex replacements')
       .setDesc('Apply regular expression replacements to the Markdown content after HTML conversion. You can use $1, $2, etc. to reference capture groups.');
-    
+
     // Create a container for the regex replacement rows
     const markdownRegexContainer = containerEl.createDiv();
     markdownRegexContainer.addClass('regex-replacements-container');
-    
+
     // Create a table for the regex replacements
     const markdownRegexTable = markdownRegexContainer.createEl('table');
     markdownRegexTable.addClass('regex-table');
-    
+
     // Create the header row
     const markdownRegexThead = markdownRegexTable.createEl('thead');
     const markdownRegexHeaderRow = markdownRegexThead.createEl('tr');
-    
+
     // Pattern header
     const markdownRegexPatternHeader = markdownRegexHeaderRow.createEl('th');
     markdownRegexPatternHeader.setText('Pattern');
     markdownRegexPatternHeader.addClass('regex-th');
     markdownRegexPatternHeader.addClass('regex-th-pattern');
-    
+
     // Replacement header
     const markdownRegexReplacementHeader = markdownRegexHeaderRow.createEl('th');
     markdownRegexReplacementHeader.setText('Replacement');
     markdownRegexReplacementHeader.addClass('regex-th');
     markdownRegexReplacementHeader.addClass('regex-th-replacement');
-    
+
     // Actions header
     const markdownRegexActionsHeader = markdownRegexHeaderRow.createEl('th');
     markdownRegexActionsHeader.addClass('regex-th');
     markdownRegexActionsHeader.addClass('regex-th-actions');
-    
+
     // Create the table body
     const markdownRegexTbody = markdownRegexTable.createEl('tbody');
-    
+
     // Add a row for each replacement
     this.plugin.settings.markdownRegexReplacements.forEach((replacement, index) => {
       const row = markdownRegexTbody.createEl('tr');
-      
+
       // Pattern cell
       const patternCell = row.createEl('td');
       patternCell.addClass('regex-td');
-      
+
       // Pattern input
       const patternInput = document.createElement('input');
       patternInput.type = 'text';
@@ -657,11 +658,11 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       });
       patternCell.appendChild(patternInput);
-      
+
       // Replacement cell
       const replacementCell = row.createEl('td');
       replacementCell.addClass('regex-td');
-      
+
       // Replacement input
       const replacementInput = document.createElement('input');
       replacementInput.type = 'text';
@@ -673,12 +674,12 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       });
       replacementCell.appendChild(replacementInput);
-      
+
       // Actions cell
       const actionsCell = row.createEl('td');
       actionsCell.addClass('regex-td');
       actionsCell.addClass('regex-td-actions');
-      
+
       // Remove icon
       const removeIcon = document.createElement('span');
       removeIcon.className = 'regex-remove-icon';
@@ -701,7 +702,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
       });
       actionsCell.appendChild(removeIcon);
     });
-    
+
     // Add a message if no replacements are defined
     if (this.plugin.settings.markdownRegexReplacements.length === 0) {
       const emptyRow = markdownRegexTbody.createEl('tr');
@@ -710,7 +711,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
       emptyCell.addClass('regex-empty-message');
       emptyCell.setText('No replacements defined. Click the + icon below to add one.');
     }
-    
+
     // Add plus-circle icon for adding new Markdown replacements
     const markdownAddIcon = markdownRegexContainer.createEl('div');
     markdownAddIcon.className = 'regex-add-icon';
@@ -724,7 +725,7 @@ class PasteReformmatterSettingsTab extends PluginSettingTab {
       const hasEmptyRow = this.plugin.settings.markdownRegexReplacements.some(
         replacement => replacement.pattern === '' && replacement.replacement === ''
       );
-      
+
       // Only add a new row if there isn't already an empty one
       if (!hasEmptyRow) {
         // Add a new empty replacement
