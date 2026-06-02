@@ -117,6 +117,10 @@ export function transformMarkdown(
                 return '#'.repeat(newLevel) + ' ';
             });
         }
+
+        const artifactCleanupResult = normalizePastedMarkdownArtifacts(markdown);
+        markdown = artifactCleanupResult.markdown;
+        appliedTransformations = appliedTransformations || artifactCleanupResult.appliedTransformations;
     } else {
         // If escaping markdown, we don't want to change headings
         // Just escape the markdown content
@@ -233,4 +237,120 @@ export function transformMarkdown(
         markdown,
         appliedTransformations
     };
+}
+
+function normalizePastedMarkdownArtifacts(markdown: string): { markdown: string, appliedTransformations: boolean } {
+    const originalMarkdown = markdown;
+
+    // Some rich-text sources, notably WeChat articles, use visual bullet glyphs
+    // inside real list items. Obsidian's converter then produces "- • item".
+    markdown = markdown
+        .replace(/^(\s*)[-*+]\s+[•·●]\s+/gm, '$1- ')
+        .replace(/^(\s*)[•·●]\s+/gm, '$1- ')
+        .replace(/^(\s*\d+\.)\s+\d+\.\s+/gm, '$1 ');
+
+    markdown = markdown.replace(/`([^`\n]+)`/g, (match, content) => {
+        const code = stripWechatLineNumberGutter(content);
+        if (!code) {
+            return match;
+        }
+
+        const fence = code.includes('```') ? '~~~' : '```';
+        return `${fence}\n${code}\n${fence}`;
+    });
+
+    return {
+        markdown,
+        appliedTransformations: originalMarkdown !== markdown
+    };
+}
+
+function stripWechatLineNumberGutter(content: string): string | null {
+    const normalized = content
+        .replace(/[\u00a0\u2007\u202f]/g, ' ')
+        .replace(/[\u200b\u200c\u200d\ufeff]/g, '\n');
+
+    const normalizedLines = normalized
+        .split(/\n+/)
+        .map(line => line.replace(/[ \t]+$/g, ''))
+        .filter(line => line.length > 0);
+
+    if (normalizedLines.length > 1 && isLineNumberGutter(normalizedLines[0].trim())) {
+        return stripCommonIndent(normalizedLines.slice(1)).join('\n');
+    }
+
+    if (!/^\s{2,}\d+\s+/.test(normalized)) {
+        return null;
+    }
+
+    let rest = normalized.trimStart();
+    let expectedLineNumber = 1;
+    let consumedLineNumbers = 0;
+
+    while (true) {
+        const lineNumberPattern = new RegExp(`^${expectedLineNumber}\\b\\s+`);
+        const lineNumberMatch = rest.match(lineNumberPattern);
+
+        if (!lineNumberMatch) {
+            break;
+        }
+
+        rest = rest.slice(lineNumberMatch[0].length);
+        expectedLineNumber++;
+        consumedLineNumbers++;
+    }
+
+    rest = rest.trim();
+
+    if (consumedLineNumbers === 0 || rest.length === 0) {
+        return null;
+    }
+
+    if (consumedLineNumbers > 1) {
+        const lines = rest
+            .split(/[ \t]{3,}/)
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+
+        if (lines.length > 1) {
+            return lines.join('\n');
+        }
+    }
+
+    return rest;
+}
+
+function isLineNumberGutter(line: string): boolean {
+    const lineNumbers = line.match(/\d+/g);
+
+    if (!lineNumbers || lineNumbers.length === 0) {
+        return false;
+    }
+
+    if (!/^(?:\d+\s*)+$/.test(line)) {
+        return false;
+    }
+
+    return lineNumbers.every((lineNumber, index) => Number(lineNumber) === index + 1);
+}
+
+function stripCommonIndent(lines: string[]): string[] {
+    const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+
+    if (nonEmptyLines.length === 0) {
+        return lines;
+    }
+
+    const commonIndent = Math.min(
+        ...nonEmptyLines.map(line => {
+            const indentMatch = line.match(/^[ \t]*/);
+            return indentMatch ? indentMatch[0].length : 0;
+        })
+    );
+
+    if (commonIndent === 0) {
+        return lines;
+    }
+
+    return lines.map(line => line.slice(commonIndent));
 }
